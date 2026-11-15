@@ -1,0 +1,24 @@
+# Render blueprint for the API + Socket.IO service (a proposal: hosting is not yet confirmed).
+# A persistent service is required for WebSockets, so use a paid always-on instance, not a free one that sleeps.
+services:
+  - type: web
+    name: drive-611-gps-api
+    runtime: node
+    rootDir: server
+    plan: starter
+    buildCommand: npm ci --omit=dev
+    # Runs the database migrations before the new version takes traffic.
+    preDeployCommand: npm run migrate
+    startCommand: node src/server.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # the managed PostgreSQL connection string, set in the dashboard
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false # e.g. https://app.example.com
+      - key: COOKIE_SAMESITE
+        value: none # the website and the API are on different sites

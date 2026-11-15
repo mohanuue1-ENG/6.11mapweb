@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/jpeg" href="/assets/logo.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>6.11 Drive GPS — Fleet tracking for trucking companies</title>
+    <meta name="description" content="Live truck locations, trip history and reports for trucking companies, with a simple app for drivers." />
+    <!-- Apply the saved theme before the first paint so the page never flashes the wrong colours. Day mode is the default. -->
+    <script>
+      (function () {
+        var root = document.documentElement;
+        try {
+          var s = localStorage.getItem('611_theme_setting') || 'light';
+          var dark = s === 'dark' || (s === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          root.classList.add(dark ? 'dark' : 'light');
+        } catch (e) {
+          root.classList.add('light');
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  </head>
+  <body class="antialiased selection:bg-brand-green selection:text-black min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
