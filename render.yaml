@@ -31,6 +31,8 @@ services:
         fromDatabase:
           name: drive-611-db
           property: connectionString
+      - key: DATABASE_SSL
+        value: 'false' # internal address, inside Render's private network (an outside address would need true)
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: COOKIE_SAMESITE
