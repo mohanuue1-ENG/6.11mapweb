@@ -10,7 +10,7 @@ databases:
   - name: drive-611-db
     databaseName: drive611
     user: drive611
-    plan: basic-256mb
+    plan: free # TEST ONLY: expires after 30 days. For real use change to basic-256mb
 
 services:
   # ---- API + Socket.IO -------------------------------------------------------------------------
@@ -18,11 +18,11 @@ services:
     name: drive-611-gps-api
     runtime: node
     rootDir: server
-    plan: starter
+    plan: free # TEST ONLY: sleeps after 15 min idle. For real use change to starter
     buildCommand: npm ci --omit=dev
-    # Creates/updates the database tables before each new version takes traffic.
-    preDeployCommand: npm run migrate
-    startCommand: node src/server.js
+    # Free plan has no pre-deploy step, so the tables are created/updated when the server starts.
+    # (On a paid plan you can instead use preDeployCommand: npm run migrate and startCommand: node src/server.js)
+    startCommand: npm run migrate && node src/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
