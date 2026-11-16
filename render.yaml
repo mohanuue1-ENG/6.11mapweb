@@ -1,13 +1,26 @@
-# Render blueprint for the API + Socket.IO service (a proposal: hosting is not yet confirmed).
-# A persistent service is required for WebSockets, so use a paid always-on instance, not a free one that sleeps.
+# Render blueprint: PostgreSQL + API (Socket.IO) + website, all in one go.
+#
+# How to use: Render dashboard -> New -> Blueprint -> pick this repo. Render creates the three things below.
+# Then fill the values marked "sync: false" (see the numbered steps at the bottom).
+#
+# The API needs an always-on instance for WebSockets (live tracking), so it uses a paid plan, not a free one
+# that sleeps. Change the plans below if you want something else.
+
+databases:
+  - name: drive-611-db
+    databaseName: drive611
+    user: drive611
+    plan: basic-256mb
+
 services:
+  # ---- API + Socket.IO -------------------------------------------------------------------------
   - type: web
     name: drive-611-gps-api
     runtime: node
     rootDir: server
     plan: starter
     buildCommand: npm ci --omit=dev
-    # Runs the database migrations before the new version takes traffic.
+    # Creates/updates the database tables before each new version takes traffic.
     preDeployCommand: npm run migrate
     startCommand: node src/server.js
     healthCheckPath: /api/v1/health
@@ -15,10 +28,47 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false # the managed PostgreSQL connection string, set in the dashboard
+        fromDatabase:
+          name: drive-611-db
+          property: connectionString
       - key: JWT_ACCESS_SECRET
         generateValue: true
-      - key: CLIENT_URL
-        sync: false # e.g. https://app.example.com
       - key: COOKIE_SAMESITE
-        value: none # the website and the API are on different sites
+        value: none # the website and the API are on different addresses
+      - key: CLIENT_URL
+        sync: false # the website address, e.g. https://drive-611-gps-web.onrender.com
+      - key: APP_URL
+        sync: false # same as CLIENT_URL (used in emails and payment return links)
+      - key: SEED_SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SEED_SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: GEOCODER_USER_AGENT
+        value: 611-drive-gps/1.0 (contact: CHANGE-ME@yourcompany.com)
+      # Optional: email (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, ADMIN_NOTIFY_EMAIL)
+      # and payments (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET). Add them in the dashboard when you have them.
+
+  # ---- Website ---------------------------------------------------------------------------------
+  - type: web
+    name: drive-611-gps-web
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false # the API address + /api/v1, e.g. https://drive-611-gps-api.onrender.com/api/v1
+    routes:
+      # Single-page app: every address opens index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+# Steps after "Apply":
+#  1. Wait for both services to be created. Note the two addresses Render shows (api and web).
+#  2. API service -> Environment: set CLIENT_URL and APP_URL = the web address; SEED_SUPER_ADMIN_EMAIL and
+#     SEED_SUPER_ADMIN_PASSWORD = the Super Admin you want. Save (it redeploys).
+#  3. Web service -> Environment: set VITE_API_URL = <api address>/api/v1, then "Manual Deploy" (the value is
+#     baked in when the site is built).
+#  4. API service -> Shell: run   npm run seed   once, to create the Super Admin.
+#  5. Check <api address>/api/v1/health shows {"status":"ok"}, then sign in on the web address.
+#  6. Driver app: build with EXPO_PUBLIC_API_URL=<api address>/api/v1 (see DEPLOY.md, section 12).
