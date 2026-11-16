@@ -44,7 +44,7 @@ services:
       - key: SEED_SUPER_ADMIN_PASSWORD
         sync: false
       - key: GEOCODER_USER_AGENT
-        value: 611-drive-gps/1.0 (contact: CHANGE-ME@yourcompany.com)
+        sync: false # e.g. 611-drive-gps/1.0 (contact: your-email@example.com)
       # Optional: email (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, ADMIN_NOTIFY_EMAIL)
       # and payments (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET). Add them in the dashboard when you have them.
 
