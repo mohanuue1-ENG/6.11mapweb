@@ -22,7 +22,8 @@ services:
     buildCommand: npm ci --omit=dev
     # Free plan has no pre-deploy step, so the tables are created/updated when the server starts.
     # (On a paid plan you can instead use preDeployCommand: npm run migrate and startCommand: node src/server.js)
-    startCommand: npm run migrate && node src/server.js
+    # The seed only creates what is missing (plan, NEB, Super Admin), so it is safe on every start. The free plan has no Shell.
+    startCommand: npm run migrate && npm run seed && node src/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
