@@ -28,7 +28,7 @@ export function loadConfig(env = process.env) {
     throw new Error('COOKIE_SAMESITE must be lax, strict or none');
   }
 
-  const mailConfigured = !!env.SMTP_HOST;
+  const mailConfigured = !!(env.SMTP_HOST || (env.MAILJET_API_KEY && env.MAILJET_SECRET_KEY));
 
   return {
     nodeEnv,
@@ -69,6 +69,9 @@ export function loadConfig(env = process.env) {
     smtpPort: int(env.SMTP_PORT, 587),
     smtpUser: env.SMTP_USER || '',
     smtpPass: env.SMTP_PASS || '',
+    // Mailjet web API (used before SMTP when both keys are set). MAIL_FROM must be a sender verified in Mailjet.
+    mailjetApiKey: env.MAILJET_API_KEY || '',
+    mailjetSecretKey: env.MAILJET_SECRET_KEY || '',
     mailFrom: env.MAIL_FROM || '6.11 Drive GPS <no-reply@localhost>',
     adminNotifyEmail: env.ADMIN_NOTIFY_EMAIL || '',
     // Public address of the website, used in links inside emails.
