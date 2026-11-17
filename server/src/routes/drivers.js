@@ -7,6 +7,7 @@ import { uuid, email, password, requiredText, nullableText, nullableDate, buildU
 import { assertNoActiveTrip, endActiveAssignments } from '../services/fleet.js';
 import { revokeAllForUser } from '../services/tokens.js';
 import { audit } from '../services/audit.js';
+import { samePhone } from '../services/verification.js';
 
 const SELECT = `
   SELECT d.id, d.name, d.phone, d.driver_number, d.license_number, d.license_state,
@@ -82,12 +83,16 @@ export function driverRoutes({ db, config, authenticate }) {
       [companyId, driverNumber, exceptId],
     );
     if (rows.length) throw conflict(`Driver ID ${driverNumber} is already in use`);
-    // The app finds a new driver by this number alone, so no other waiting driver may hold it.
-    const other = await q.query(
-      `SELECT 1 FROM drivers WHERE upper(driver_number) = upper($1) AND user_id IS NULL AND company_id <> $2 LIMIT 1`,
-      [driverNumber, companyId],
+  };
+
+  // The app finds a new driver by this phone number, so no other driver waiting to sign up may hold it.
+  const assertPhoneFree = async (q, phone, exceptId = null) => {
+    if (!phone) return;
+    const { rows } = await q.query(
+      `SELECT phone FROM drivers WHERE phone IS NOT NULL AND user_id IS NULL AND ($1::uuid IS NULL OR id <> $1::uuid)`,
+      [exceptId],
     );
-    if (other.rows.length) throw conflict('That driver number is already taken. Choose a different one.');
+    if (rows.some((r) => samePhone(r.phone, phone))) throw conflict('That phone number is already used by another driver who has not signed up yet.');
   };
 
   // Creates the DRIVER user the mobile app signs in with. The company comes
@@ -120,6 +125,7 @@ export function driverRoutes({ db, config, authenticate }) {
 
       const row = await db.tx(async (q) => {
         await assertNumberFree(q, companyId, input.driverNumber);
+        await assertPhoneFree(q, input.phone);
         const inserted = await q.query(
           `INSERT INTO drivers (company_id, name, phone, driver_number, license_number, license_state, license_expires_on, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
@@ -174,6 +180,7 @@ export function driverRoutes({ db, config, authenticate }) {
         if (profile.driverNumber && profile.driverNumber !== current.driver_number) {
           await assertNumberFree(q, companyId, profile.driverNumber, id);
         }
+        if (profile.phone && profile.phone !== current.phone) await assertPhoneFree(q, profile.phone, id);
         const newStatus = profile.status ?? current.status;
         if (newStatus !== current.status && newStatus === 'inactive') {
           await assertNoActiveTrip(q, companyId, { driverId: id });

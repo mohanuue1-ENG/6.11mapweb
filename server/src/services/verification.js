@@ -4,6 +4,18 @@ import { hashToken } from './tokens.js';
 
 export const normEmail = (v) => String(v ?? '').trim().toLowerCase();
 
+export const digits = (v) => String(v ?? '').replace(/\D+/g, '');
+
+// Two phone numbers are the same when their digits match, or when the last nine digits match
+// (a number written with and without its country code).
+export function samePhone(a, b) {
+  const da = digits(a);
+  const db = digits(b);
+  if (da.length < 7 || db.length < 7) return false;
+  if (da === db) return true;
+  return da.length >= 9 && db.length >= 9 && da.slice(-9) === db.slice(-9);
+}
+
 // j•••@gmail.com: enough for the driver to recognise the address, not enough to learn it.
 export function maskEmail(v) {
   const [name, domain] = normEmail(v).split('@');

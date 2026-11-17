@@ -3,6 +3,7 @@ import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import { errorMessage } from '../../services/api';
 import { ErrorBanner, Field, Modal, primaryButton, useFieldClass } from '../../components/common/ui';
+import { COUNTRIES, flag, joinPhone, splitPhone } from '../../data/countries';
 import {
   Users,
   PlusCircle,
@@ -12,12 +13,10 @@ import {
   Power,
   Search,
   Truck,
-  Phone,
   ShieldCheck,
   AlertCircle,
   CheckCircle2,
   Smartphone,
-  KeyRound,
   X
 } from 'lucide-react';
 
@@ -35,26 +34,22 @@ export default function Drivers() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    phone: '',
+    phoneDial: '1',
+    phoneNational: '',
     driverIdNumber: '',
     licenseNumber: '',
     assignedTruckId: '',
-    hasLogin: false,
-    email: '',
-    password: '',
   });
 
   const openAddModal = () => {
     setEditingDriver(null);
     setFormData({
       name: '',
-      phone: '',
+      phoneDial: '1',
+      phoneNational: '',
       driverIdNumber: '',
       licenseNumber: '',
       assignedTruckId: '',
-      hasLogin: false,
-      email: '',
-      password: '',
     });
     setFormError('');
     setModalOpen(true);
@@ -62,15 +57,14 @@ export default function Drivers() {
 
   const openEditModal = (driver) => {
     setEditingDriver(driver);
+    const parts = splitPhone(driver.phone);
     setFormData({
       name: driver.name,
-      phone: driver.phone,
+      phoneDial: parts.dial,
+      phoneNational: parts.national,
       driverIdNumber: driver.driverIdNumber,
       licenseNumber: driver.licenseNumber || '',
       assignedTruckId: driver.assignedTruckId || '',
-      hasLogin: driver.hasLogin,
-      email: driver.email || '',
-      password: '',
     });
     setFormError('');
     setModalOpen(true);
@@ -80,13 +74,9 @@ export default function Drivers() {
     e.preventDefault();
     if (saving || !formData.name) return;
 
-    const creatingLogin = formData.hasLogin && !editingDriver?.hasLogin;
-    if (!editingDriver && !formData.hasLogin && !formData.driverIdNumber.trim()) {
-      setFormError('Add a driver number. The driver enters it in the app to create their own account.');
-      return;
-    }
-    if (creatingLogin && (!formData.email || formData.password.length < 8)) {
-      setFormError('A driver login needs an email and a password of at least 8 characters.');
+    const phone = joinPhone(formData.phoneDial, formData.phoneNational);
+    if (phone.replace(/\D/g, '').length < 7) {
+      setFormError('Add the driver’s phone number. The driver enters it in the app to create their own account.');
       return;
     }
 
@@ -94,9 +84,9 @@ export default function Drivers() {
     setFormError('');
     try {
       if (editingDriver) {
-        await updateDriver(editingDriver.id, formData);
+        await updateDriver(editingDriver.id, { ...formData, phone });
       } else {
-        await addDriver(formData);
+        await addDriver({ ...formData, phone });
       }
       setModalOpen(false);
     } catch (err) {
@@ -130,7 +120,7 @@ export default function Drivers() {
   const filteredDrivers = drivers.filter((d) => {
     return (
       d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.phone.includes(searchQuery) ||
+      (d.phone || '').includes(searchQuery) ||
       d.driverIdNumber.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
@@ -174,7 +164,7 @@ export default function Drivers() {
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by Driver Name, ID, or Phone..."
+            placeholder="Search by driver name, phone or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
@@ -320,28 +310,39 @@ export default function Drivers() {
         <Modal title={editingDriver ? `Edit ${editingDriver.name}` : 'Register new driver'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave} className='space-y-4'>
             <ErrorBanner message={formError} />
-            <div className='grid grid-cols-2 gap-3'>
-              <Field label='Full name *'>
-                <input required className={field} placeholder='e.g. Liban Farole' value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-              </Field>
-              <Field label='Phone'>
-                <input type='tel' className={field} placeholder='+1 555 000 0000' value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-              </Field>
-            </div>
+            <Field label='Full name *'>
+              <input required className={field} placeholder='e.g. Liban Farole' value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            </Field>
+
+            <Field label='Phone number *'>
+              <div className='flex gap-2'>
+                <select
+                  aria-label='Country code'
+                  className={`${field} !w-auto max-w-[46%] shrink-0`}
+                  value={formData.phoneDial}
+                  onChange={(e) => setFormData({ ...formData, phoneDial: e.target.value })}
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.dial}>
+                      {flag(c.code)} {c.name} (+{c.dial})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type='tel'
+                  inputMode='tel'
+                  className={field}
+                  placeholder='555 123 4567'
+                  value={formData.phoneNational}
+                  onChange={(e) => setFormData({ ...formData, phoneNational: e.target.value })}
+                />
+              </div>
+              <p className='text-[11px] text-mute mt-1'>The driver enters this phone number in the app to create their account.</p>
+            </Field>
 
             <div className='grid grid-cols-2 gap-3'>
-              <Field label='Driver number *'>
-                <div className='flex gap-2'>
-                  <input className={`${field} uppercase`} placeholder='e.g. 48201937' value={formData.driverIdNumber} onChange={(e) => setFormData({ ...formData, driverIdNumber: e.target.value })} />
-                  <button
-                    type='button'
-                    className='px-3 text-xs font-semibold rounded-xl border border-line text-mute hover:text-ink hover:border-brand-green whitespace-nowrap'
-                    onClick={() => setFormData({ ...formData, driverIdNumber: String(Math.floor(10000000 + Math.random() * 90000000)) })}
-                  >
-                    Generate
-                  </button>
-                </div>
-                <p className='text-[11px] text-mute mt-1'>Give this number to the driver. They enter it in the app to create their account, so keep it private and hard to guess.</p>
+              <Field label='Driver ID (optional)'>
+                <input className={`${field} uppercase`} placeholder='e.g. D105' value={formData.driverIdNumber} onChange={(e) => setFormData({ ...formData, driverIdNumber: e.target.value })} />
               </Field>
               <Field label='License number (CDL)'>
                 <input className={`${field} uppercase`} value={formData.licenseNumber} onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })} />
@@ -358,35 +359,13 @@ export default function Drivers() {
               </select>
             </Field>
 
-            <div className='p-4 rounded-2xl border border-line bg-surface-2 space-y-3'>
-              <label className='flex items-center justify-between gap-3 text-xs font-semibold'>
-                <span className='flex items-center gap-2'><KeyRound className='w-4 h-4 text-accent' /> Set the app login myself (optional)</span>
-                <input
-                  type='checkbox'
-                  className='accent-brand-green w-4 h-4'
-                  checked={formData.hasLogin}
-                  disabled={!!editingDriver?.hasLogin}
-                  aria-label='Create driver login account'
-                  onChange={(e) => setFormData({ ...formData, hasLogin: e.target.checked })}
-                />
-              </label>
-              {!formData.hasLogin && !editingDriver?.hasLogin && (
-                <p className='text-xs text-mute leading-relaxed'>Leave this off. Your driver opens the TRUKOVA app, enters the driver number above, then their name and email, confirms a code sent to that email and chooses a password.</p>
+            <p className='text-xs text-mute leading-relaxed'>
+              {editingDriver?.hasLogin ? (
+                <>This driver has an app account (<span className='font-semibold text-ink'>{editingDriver.email}</span>).</>
+              ) : (
+                'The driver opens the TRUKOVA app, enters their phone number, then their name and email, confirms a code sent to that email and chooses a password.'
               )}
-              {editingDriver?.hasLogin && (
-                <p className='text-xs text-mute'>This driver signs in to the mobile app as <span className='font-semibold text-ink'>{editingDriver.email}</span>.</p>
-              )}
-              {formData.hasLogin && !editingDriver?.hasLogin && (
-                <div className='grid grid-cols-2 gap-3'>
-                  <Field label='Email'>
-                    <input type='email' className={field} placeholder='driver@company.com' value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                  </Field>
-                  <Field label='Password'>
-                    <input type='password' className={field} placeholder='At least 8 characters' minLength={8} autoComplete='new-password' value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                  </Field>
-                </div>
-              )}
-            </div>
+            </p>
 
             <div className='flex justify-end gap-2 pt-1'>
               <button type='button' onClick={() => setModalOpen(false)} className='px-4 py-2 text-xs font-semibold rounded-xl border border-line text-mute hover:text-ink'>Cancel</button>

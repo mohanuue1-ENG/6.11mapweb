@@ -14,7 +14,7 @@ import {
 import { audit } from '../services/audit.js';
 import { hashToken, revokeAllForUser } from '../services/tokens.js';
 import { HttpError, notFound } from '../errors.js';
-import { createCode, verifyCode, createTrustedDevice, checkTrustedDevice, maskEmail } from '../services/verification.js';
+import { createCode, verifyCode, createTrustedDevice, checkTrustedDevice, maskEmail, samePhone } from '../services/verification.js';
 
 const REFRESH_COOKIE = 'rt';
 const COOKIE_PATH = '/api/v1/auth';
@@ -68,15 +68,15 @@ export function publicUser(user) {
 }
 
 const codeField = z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code');
-// The number the company set for the driver: it finds the driver profile, so it is the first thing asked.
-const driverNumber = z.string().trim().min(1).max(40).transform((v) => v.toUpperCase());
-const driverLookupSchema = z.object({ driverNumber }).strict();
-const driverRequestSchema = z.object({ driverNumber, email }).strict();
+// The phone number the company put on the driver profile: it finds the driver, so it is the first thing asked.
+const phoneField = z.string().trim().min(6).max(40);
+const driverLookupSchema = z.object({ phone: phoneField }).strict();
+const driverRequestSchema = z.object({ phone: phoneField, email }).strict();
 const driverCheckSchema = z.object({ email, code: codeField, purpose: z.enum(['register', 'reset']).optional() }).strict();
 const driverRegisterSchema = z
-  .object({ driverNumber, email, code: codeField, name: z.string().trim().min(2).max(200), password, remember: z.boolean().optional() })
+  .object({ phone: phoneField, email, code: codeField, name: z.string().trim().min(2).max(200), password, remember: z.boolean().optional() })
   .strict();
-const driverResetSchema = z.object({ driverNumber, email, code: codeField, newPassword: password }).strict();
+const driverResetSchema = z.object({ phone: phoneField, email, code: codeField, newPassword: password }).strict();
 const verifyLoginSchema = z.object({ challengeId: z.string().uuid(), code: codeField, remember: z.boolean().optional() }).strict();
 
 export function authRoutes({ db, config, authenticate, mailer }) {
@@ -148,34 +148,34 @@ export function authRoutes({ db, config, authenticate, mailer }) {
   }
   const devCodeFor = (code) => (!mailer.configured && (!config.isProduction || config.codeTestMode) ? code : undefined);
 
-  // The driver profile a number belongs to, for a driver who has no account yet.
-  const openDriverByNumber = async (number) => {
-    const rows = (await db.query(`SELECT id, company_id, user_id FROM drivers WHERE status = 'active' AND upper(driver_number) = $1`, [number])).rows;
-    if (!rows.length) throw notFound('We could not find this driver number. Check it, or ask your company for your number.');
+  // The driver profile a phone number belongs to, for a driver who has no account yet.
+  const openDriverByPhone = async (phone) => {
+    const rows = (await db.query(`SELECT id, company_id, user_id, phone FROM drivers WHERE status = 'active' AND phone IS NOT NULL`)).rows.filter((d) => samePhone(d.phone, phone));
+    if (!rows.length) throw notFound('We could not find this phone number. Check it, or ask your company to add it for you.');
     const open = rows.filter((d) => !d.user_id);
     if (!open.length) throw conflict('This driver already has an account. Sign in instead.');
-    if (open.length > 1) throw conflict('This number is used by more than one driver. Ask your company for a different number.');
+    if (open.length > 1) throw conflict('This phone number is used by more than one driver. Ask your company to fix it.');
     return open[0];
   };
   const invalidCode = () => new HttpError(400, 'INVALID_CODE', 'That code is not correct or has expired. Ask for a new one.');
   const emailTaken = async (address) => (await db.query('SELECT 1 FROM users WHERE lower(email) = $1', [address])).rows.length > 0;
 
-  // POST /auth/driver/lookup — step 1 of creating an account: is this number one a company has set up?
+  // POST /auth/driver/lookup — step 1 of creating an account: is this a phone number a company has set up?
   router.post(
     '/driver/lookup',
     asyncHandler(async (req, res) => {
-      const { driverNumber: number } = parse(driverLookupSchema, req.body);
-      await openDriverByNumber(number);
+      const { phone } = parse(driverLookupSchema, req.body);
+      await openDriverByPhone(phone);
       res.json({ ok: true });
     }),
   );
 
-  // POST /auth/driver/request-code — the driver's own email, for the number from step 1. A code is emailed to it.
+  // POST /auth/driver/request-code — the driver's own email, for the phone number from step 1. A code is emailed to it.
   router.post(
     '/driver/request-code',
     asyncHandler(async (req, res) => {
-      const { driverNumber: number, email: target } = parse(driverRequestSchema, req.body);
-      const driver = await openDriverByNumber(number);
+      const { phone, email: target } = parse(driverRequestSchema, req.body);
+      const driver = await openDriverByPhone(phone);
       if (await emailTaken(target)) throw conflict('An account with this email already exists. Sign in instead.');
       const { code } = await db.tx((q) => createCode(q, config, { purpose: 'register', target, driverId: driver.id }));
       await sendCode(target, code);
@@ -194,16 +194,16 @@ export function authRoutes({ db, config, authenticate, mailer }) {
     }),
   );
 
-  // POST /auth/driver/register — the last step: the driver's number, email and emailed code, with their name and password.
+  // POST /auth/driver/register — the last step: the phone number, email and emailed code, with the driver's name and password.
   router.post(
     '/driver/register',
     asyncHandler(async (req, res) => {
       const input = parse(driverRegisterSchema, req.body);
       // Checked before the code is used up, so these do not waste it.
-      const driver = await openDriverByNumber(input.driverNumber);
+      const driver = await openDriverByPhone(input.phone);
       if (await emailTaken(input.email)) throw conflict('An account with this email already exists. Sign in instead.');
       const row = await verifyCode(db, { purpose: 'register', target: input.email, code: input.code });
-      if (row.driver_id !== driver.id) throw invalidCode(); // the code was asked for another driver's number
+      if (row.driver_id !== driver.id) throw invalidCode(); // the code was asked for another driver's phone number
 
       const hash = await bcrypt.hash(input.password, config.bcryptRounds);
       const { userId, refreshToken, deviceToken } = await db.tx(async (q) => {
@@ -229,23 +229,23 @@ export function authRoutes({ db, config, authenticate, mailer }) {
     }),
   );
 
-  // The driver account a number and email belong to, for a forgotten password.
-  const driverAccount = async (number, address) =>
+  // The driver account a phone number and email belong to, for a forgotten password.
+  const driverAccount = async (phone, address) =>
     (
       await db.query(
-        `SELECT d.id AS driver_id, u.id AS user_id, u.company_id FROM drivers d JOIN users u ON u.id = d.user_id
-          WHERE d.status = 'active' AND upper(d.driver_number) = $1 AND lower(u.email) = $2`,
-        [number, address],
+        `SELECT d.id AS driver_id, d.phone, u.id AS user_id, u.company_id FROM drivers d JOIN users u ON u.id = d.user_id
+          WHERE d.status = 'active' AND d.phone IS NOT NULL AND lower(u.email) = $1`,
+        [address],
       )
-    ).rows[0];
+    ).rows.find((r) => samePhone(r.phone, phone));
 
-  // POST /auth/driver/forgot/request — forgot password, steps 1 and 2: the driver number and the account's email.
+  // POST /auth/driver/forgot/request — forgot password, steps 1 and 2: the phone number and the account's email.
   // The answer is the same whether or not they match, so this cannot be used to find out who has an account.
   router.post(
     '/driver/forgot/request',
     asyncHandler(async (req, res) => {
-      const { driverNumber: number, email: target } = parse(driverRequestSchema, req.body);
-      const account = await driverAccount(number, target);
+      const { phone, email: target } = parse(driverRequestSchema, req.body);
+      const account = await driverAccount(phone, target);
       let devCode;
       if (account) {
         const { code } = await db.tx((q) => createCode(q, config, { purpose: 'reset', target, driverId: account.driver_id, userId: account.user_id }));
@@ -263,7 +263,7 @@ export function authRoutes({ db, config, authenticate, mailer }) {
     '/driver/forgot/reset',
     asyncHandler(async (req, res) => {
       const input = parse(driverResetSchema, req.body);
-      const account = await driverAccount(input.driverNumber, input.email);
+      const account = await driverAccount(input.phone, input.email);
       if (!account) throw invalidCode();
       const row = await verifyCode(db, { purpose: 'reset', target: input.email, code: input.code });
       if (row.driver_id !== account.driver_id) throw invalidCode();
