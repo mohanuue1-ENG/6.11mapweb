@@ -11,7 +11,7 @@ import { attachRealtime } from '../src/realtime.js';
 export const randomPassword = () => crypto.randomBytes(12).toString('base64url');
 
 // A fresh in-memory PostgreSQL + app per test file.
-export async function createTestContext(overrides = {}) {
+export async function createTestContext(overrides = {}, deps = {}) {
   const config = loadConfig({
     NODE_ENV: 'test',
     JWT_ACCESS_SECRET: crypto.randomBytes(48).toString('base64url'),
@@ -27,7 +27,7 @@ export async function createTestContext(overrides = {}) {
   // A mailer that records what would have been sent.
   const mail = [];
   const mailer = { configured: true, send: async (m) => (mail.push(m), { sent: true }) };
-  const app = createApp({ db, config, mailer });
+  const app = createApp({ db, config, mailer, ...deps });
   const api = () => request(app);
 
   // Registers a company through the API, as the mobile client so the refresh

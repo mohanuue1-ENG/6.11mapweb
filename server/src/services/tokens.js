@@ -38,9 +38,11 @@ export function verifyAccessTokenDetailed(config, token) {
 }
 
 // Creates a refresh token row and returns the raw token (shown to the client once).
-export async function issueRefreshToken(q, config, { userId, familyId, meta }) {
+export async function issueRefreshToken(q, config, { userId, familyId, meta, maxExpiresAt }) {
   const raw = crypto.randomBytes(48).toString('base64url');
-  const expiresAt = new Date(Date.now() + config.refreshTokenTtlDays * 24 * 60 * 60 * 1000);
+  let expiresAt = new Date(Date.now() + config.refreshTokenTtlDays * 24 * 60 * 60 * 1000);
+  // A session never outlives its cap, however often it is used.
+  if (maxExpiresAt && maxExpiresAt < expiresAt) expiresAt = maxExpiresAt;
   await q.query(
     `INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at, user_agent, ip_address)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -90,8 +92,17 @@ export async function rotateRefreshToken(db, config, raw, meta) {
       return { error: 'unusable', familyId: row.family_id, user };
     }
 
+    // A driver's session lasts at most the verification period (30 days) from when the code was entered,
+    // however often the app is used; after that they sign in and are verified again.
+    let maxExpiresAt = null;
+    if (user.role === 'DRIVER' && config.driverSmsLogin) {
+      const origin = (await q.query('SELECT min(created_at) AS t FROM refresh_tokens WHERE family_id = $1', [row.family_id])).rows[0].t;
+      maxExpiresAt = new Date(new Date(origin).getTime() + config.trustedDeviceDays * 24 * 60 * 60 * 1000);
+      if (maxExpiresAt <= new Date()) return { error: 'expired', familyId: row.family_id };
+    }
+
     await q.query('UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1', [row.id]);
-    const refreshToken = await issueRefreshToken(q, config, { userId: user.id, familyId: row.family_id, meta });
+    const refreshToken = await issueRefreshToken(q, config, { userId: user.id, familyId: row.family_id, meta, maxExpiresAt });
     return { user, refreshToken };
   });
 

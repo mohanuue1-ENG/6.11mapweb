@@ -28,6 +28,14 @@ export function loadConfig(env = process.env) {
     throw new Error('COOKIE_SAMESITE must be lax, strict or none');
   }
 
+  const twilioAccountSid = env.TWILIO_ACCOUNT_SID || '';
+  const twilioAuthToken = env.TWILIO_AUTH_TOKEN || '';
+  const twilioFrom = env.TWILIO_FROM || '';
+  const telnyxApiKey = env.TELNYX_API_KEY || '';
+  const telnyxFrom = env.TELNYX_FROM || '';
+  const telnyxMessagingProfileId = env.TELNYX_MESSAGING_PROFILE_ID || '';
+  const smsConfigured = !!(twilioAccountSid && twilioAuthToken && twilioFrom) || !!(telnyxApiKey && telnyxFrom);
+
   return {
     nodeEnv,
     isProduction,
@@ -72,6 +80,22 @@ export function loadConfig(env = process.env) {
     // Public address of the website, used in links inside emails.
     appUrl: (env.APP_URL || (env.CLIENT_URL || 'http://localhost:3000').split(',')[0]).trim().replace(/\/+$/, ''),
     trialDays: int(env.TRIAL_DAYS, 7),
+    // Text messages (Twilio). Drivers prove their phone with a code when they create an account and when they sign in.
+    twilioAccountSid,
+    twilioAuthToken,
+    twilioFrom,
+    // Telnyx works the same way; if both are set, Telnyx is used.
+    telnyxApiKey,
+    telnyxFrom,
+    telnyxMessagingProfileId,
+    // Sign-in codes for drivers are on whenever text messaging is set up (set DRIVER_SMS_LOGIN=false to turn them off).
+    driverSmsLogin: env.DRIVER_SMS_LOGIN ? env.DRIVER_SMS_LOGIN === 'true' : smsConfigured,
+    // For trying the flow before a text-message service exists: the API hands the code back instead of texting it.
+    // Anyone who knows a driver's phone number could then create that driver's account, so never leave it on for real use.
+    smsTestMode: env.SMS_TEST_MODE === 'true',
+    smsCodeTtlMinutes: int(env.SMS_CODE_TTL_MINUTES, 10),
+    // How long a verified phone is remembered, and how long a driver's session can last without a new code.
+    trustedDeviceDays: int(env.TRUSTED_DEVICE_DAYS, 30),
     trustProxy: isProduction ? 1 : false,
   };
 }
