@@ -82,6 +82,12 @@ export function driverRoutes({ db, config, authenticate }) {
       [companyId, driverNumber, exceptId],
     );
     if (rows.length) throw conflict(`Driver ID ${driverNumber} is already in use`);
+    // The app finds a new driver by this number alone, so no other waiting driver may hold it.
+    const other = await q.query(
+      `SELECT 1 FROM drivers WHERE upper(driver_number) = upper($1) AND user_id IS NULL AND company_id <> $2 LIMIT 1`,
+      [driverNumber, companyId],
+    );
+    if (other.rows.length) throw conflict('That driver number is already taken. Choose a different one.');
   };
 
   // Creates the DRIVER user the mobile app signs in with. The company comes

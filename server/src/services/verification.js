@@ -2,61 +2,50 @@ import crypto from 'node:crypto';
 import { HttpError } from '../errors.js';
 import { hashToken } from './tokens.js';
 
-export const digits = (v) => String(v ?? '').replace(/\D+/g, '');
+export const normEmail = (v) => String(v ?? '').trim().toLowerCase();
 
-// Two phone numbers are the same when their digits match, or when the last nine digits match
-// (a number written with and without its country code).
-export function samePhone(a, b) {
-  const da = digits(a);
-  const db = digits(b);
-  if (da.length < 7 || db.length < 7) return false;
-  if (da === db) return true;
-  return da.length >= 9 && db.length >= 9 && da.slice(-9) === db.slice(-9);
+// j•••@gmail.com: enough for the driver to recognise the address, not enough to learn it.
+export function maskEmail(v) {
+  const [name, domain] = normEmail(v).split('@');
+  if (!name || !domain) return '•••';
+  return `${name.slice(0, 1)}${'•'.repeat(Math.max(2, Math.min(name.length - 1, 5)))}@${domain}`;
 }
-
-export const maskPhone = (v) => {
-  const d = digits(v);
-  return d.length > 4 ? `••••${d.slice(-4)}` : '••••';
-};
-
-// The number in the form text-message providers want: digits with a leading +.
-export const toE164 = (v) => `+${digits(v)}`;
 
 const MAX_ATTEMPTS = 5;
 const MAX_CODES_PER_HOUR = 5;
 const codeHash = (id, code) => hashToken(`${id}:${code}`);
 const invalid = () => new HttpError(400, 'INVALID_CODE', 'That code is not correct or has expired. Ask for a new one.');
 
-// Makes a fresh six-digit code for a phone. Older unused codes for the same purpose stop working.
-export async function createCode(q, config, { purpose, phone, driverId = null, userId = null }) {
-  const p = digits(phone);
+// Makes a fresh six-digit code for an email address. Older unused codes for the same purpose stop working.
+export async function createCode(q, config, { purpose, target, driverId = null, userId = null }) {
+  const t = normEmail(target);
   const recent = (
-    await q.query(`SELECT count(*)::int AS n FROM sms_codes WHERE phone = $1 AND created_at > now() - interval '1 hour'`, [p])
+    await q.query(`SELECT count(*)::int AS n FROM verification_codes WHERE target = $1 AND created_at > now() - interval '1 hour'`, [t])
   ).rows[0].n;
   if (recent >= MAX_CODES_PER_HOUR) {
-    throw new HttpError(429, 'TOO_MANY_CODES', 'Too many codes were requested for this number. Try again in an hour.');
+    throw new HttpError(429, 'TOO_MANY_CODES', 'Too many codes were requested for this email. Try again in an hour.');
   }
-  await q.query(`UPDATE sms_codes SET consumed_at = now() WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL`, [p, purpose]);
+  await q.query(`UPDATE verification_codes SET consumed_at = now() WHERE target = $1 AND purpose = $2 AND consumed_at IS NULL`, [t, purpose]);
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const id = crypto.randomUUID();
   await q.query(
-    `INSERT INTO sms_codes (id, purpose, phone, driver_id, user_id, code_hash, expires_at)
+    `INSERT INTO verification_codes (id, purpose, target, driver_id, user_id, code_hash, expires_at)
      VALUES ($1, $2, $3, $4, $5, $6, now() + $7::interval)`,
-    [id, purpose, p, driverId, userId, codeHash(id, code), `${config.smsCodeTtlMinutes} minutes`],
+    [id, purpose, t, driverId, userId, codeHash(id, code), `${config.codeTtlMinutes} minutes`],
   );
   return { id, code };
 }
 
-// Checks a code (by its id, or the newest one for a phone) and uses it up. A wrong guess counts against the
+// Checks a code (by its id, or the newest one for an email) and uses it up. A wrong guess counts against the
 // code, which locks after a few. Run on the database itself, not inside a transaction that may roll back,
-// so a wrong guess is always remembered.
-export async function verifyCode(db, { purpose, id, phone, code, consume = true }) {
+// so a wrong guess is always remembered. With consume: false the code is only checked.
+export async function verifyCode(db, { purpose, id, target, code, consume = true }) {
   const row = id
-    ? (await db.query('SELECT * FROM sms_codes WHERE id = $1 AND purpose = $2', [id, purpose])).rows[0]
+    ? (await db.query('SELECT * FROM verification_codes WHERE id = $1 AND purpose = $2', [id, purpose])).rows[0]
     : (
         await db.query(
-          `SELECT * FROM sms_codes WHERE phone = $1 AND purpose = $2 AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1`,
-          [digits(phone), purpose],
+          `SELECT * FROM verification_codes WHERE target = $1 AND purpose = $2 AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1`,
+          [normEmail(target), purpose],
         )
       ).rows[0];
   if (!row || row.consumed_at || new Date(row.expires_at) <= new Date() || row.attempts >= MAX_ATTEMPTS) throw invalid();
@@ -64,11 +53,11 @@ export async function verifyCode(db, { purpose, id, phone, code, consume = true 
   const given = Buffer.from(codeHash(row.id, String(code).trim()));
   const expected = Buffer.from(row.code_hash);
   if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
-    await db.query('UPDATE sms_codes SET attempts = attempts + 1 WHERE id = $1', [row.id]);
+    await db.query('UPDATE verification_codes SET attempts = attempts + 1 WHERE id = $1', [row.id]);
     throw invalid();
   }
   if (!consume) return row; // only checking: the code stays usable for the real step
-  const used = await db.query('UPDATE sms_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL RETURNING id', [row.id]);
+  const used = await db.query('UPDATE verification_codes SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL RETURNING id', [row.id]);
   if (!used.rows.length) throw invalid();
   return row;
 }

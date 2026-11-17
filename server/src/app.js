@@ -22,10 +22,9 @@ import { accessRoutes } from './routes/access.js';
 import { createMailer } from './services/mailer.js';
 import { createPaymentProvider } from './services/payments.js';
 import { createGeocoder } from './services/geocode.js';
-import { createSmsSender } from './services/sms.js';
 import { signupRoutes } from './routes/signup.js';
 
-export function createApp({ db, config, mailer = createMailer(config), payments = createPaymentProvider(config), geocoder = createGeocoder(config), sms = createSmsSender(config) }) {
+export function createApp({ db, config, mailer = createMailer(config), payments = createPaymentProvider(config), geocoder = createGeocoder(config) }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
@@ -53,7 +52,7 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
   // real-time layer (Socket.IO) forwards them to the right company room.
   const events = new EventEmitter();
   app.locals.events = events;
-  const deps = { db, config, authenticate, events, mailer, payments, geocoder, sms };
+  const deps = { db, config, authenticate, events, mailer, payments, geocoder };
 
   const api = express.Router();
   api.use(limiter(300));

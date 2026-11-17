@@ -159,14 +159,14 @@ test('a driver login works, is limited to the driver role, and follows the drive
   // Deactivating the driver closes their sessions and blocks sign-in.
   assert.equal((await as(a).patch(`/drivers/${d.id}`, { status: 'inactive' })).status, 200);
   assert.equal((await as(login.body).get('/auth/me')).status, 403);
-  assert.equal((await ctx.api().post(`${V1}/auth/login`).send({ email, password: pw })).status, 403);
+  assert.equal((await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email, password: pw })).status, 403);
   assert.notEqual(
     (await ctx.api().post(`${V1}/auth/refresh`).send({ refreshToken: login.body.refreshToken })).status,
     200,
   );
 
   assert.equal((await as(a).patch(`/drivers/${d.id}`, { status: 'active' })).status, 200);
-  assert.equal((await ctx.api().post(`${V1}/auth/login`).send({ email, password: pw })).status, 200);
+  assert.equal((await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email, password: pw })).status, 200);
 
   // A login can be added later to a driver who has none.
   const plain = await makeDriver(a, 'Late Login');
@@ -175,7 +175,7 @@ test('a driver login works, is limited to the driver role, and follows the drive
 
   // Deleting a driver removes the login too.
   assert.equal((await as(a).del(`/drivers/${d.id}`)).status, 204);
-  assert.equal((await ctx.api().post(`${V1}/auth/login`).send({ email, password: pw })).status, 401);
+  assert.equal((await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email, password: pw })).status, 401);
 });
 
 test('assignments: assign, reassign, list, end', async () => {

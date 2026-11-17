@@ -82,7 +82,7 @@ test('a driver account cannot use company admin routes', async () => {
     `INSERT INTO users (company_id, role, name, email, password_hash) VALUES ($1, 'DRIVER', 'Dee Driver', 'dee@example.test', $2)`,
     [a.companyId, rows[0].password_hash],
   );
-  const login = await ctx.api().post(`${V1}/auth/login`).send({ email: 'dee@example.test', password: a.password });
+  const login = await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: 'dee@example.test', password: a.password });
   assert.equal(login.status, 200);
   assert.equal(login.body.user.role, 'DRIVER');
   assert.equal((await ctx.api().get(`${V1}/companies/me`).set(bearer(login.body))).status, 403);

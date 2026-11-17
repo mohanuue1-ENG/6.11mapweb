@@ -81,8 +81,8 @@ export default function Drivers() {
     if (saving || !formData.name) return;
 
     const creatingLogin = formData.hasLogin && !editingDriver?.hasLogin;
-    if (!editingDriver && !formData.hasLogin && !formData.phone.trim()) {
-      setFormError('Add the driver’s phone number, with the country code. They use it to create their own account in the app.');
+    if (!editingDriver && !formData.hasLogin && !formData.driverIdNumber.trim()) {
+      setFormError('Add a driver number. The driver enters it in the app to create their own account.');
       return;
     }
     if (creatingLogin && (!formData.email || formData.password.length < 8)) {
@@ -324,14 +324,24 @@ export default function Drivers() {
               <Field label='Full name *'>
                 <input required className={field} placeholder='e.g. Liban Farole' value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </Field>
-              <Field label='Phone (with country code)'>
-                <input type='tel' className={field} placeholder='+252 61 234 5678' value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-                <p className='text-[11px] text-mute mt-1'>A sign-up and sign-in code is texted to this number.</p>
+              <Field label='Phone'>
+                <input type='tel' className={field} placeholder='+1 555 000 0000' value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
               </Field>
             </div>
+
             <div className='grid grid-cols-2 gap-3'>
-              <Field label='Driver ID'>
-                <input className={`${field} uppercase`} placeholder='e.g. D105' value={formData.driverIdNumber} onChange={(e) => setFormData({ ...formData, driverIdNumber: e.target.value })} />
+              <Field label='Driver number *'>
+                <div className='flex gap-2'>
+                  <input className={`${field} uppercase`} placeholder='e.g. 48201937' value={formData.driverIdNumber} onChange={(e) => setFormData({ ...formData, driverIdNumber: e.target.value })} />
+                  <button
+                    type='button'
+                    className='px-3 text-xs font-semibold rounded-xl border border-line text-mute hover:text-ink hover:border-brand-green whitespace-nowrap'
+                    onClick={() => setFormData({ ...formData, driverIdNumber: String(Math.floor(10000000 + Math.random() * 90000000)) })}
+                  >
+                    Generate
+                  </button>
+                </div>
+                <p className='text-[11px] text-mute mt-1'>Give this number to the driver. They enter it in the app to create their account, so keep it private and hard to guess.</p>
               </Field>
               <Field label='License number (CDL)'>
                 <input className={`${field} uppercase`} value={formData.licenseNumber} onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })} />
@@ -361,7 +371,7 @@ export default function Drivers() {
                 />
               </label>
               {!formData.hasLogin && !editingDriver?.hasLogin && (
-                <p className='text-xs text-mute leading-relaxed'>Leave this off. Your driver opens the TRUKOVA app, enters the phone number above, receives a code by text message and creates their own account (name, email and password).</p>
+                <p className='text-xs text-mute leading-relaxed'>Leave this off. Your driver opens the TRUKOVA app, enters the driver number above, then their name and email, confirms a code sent to that email and chooses a password.</p>
               )}
               {editingDriver?.hasLogin && (
                 <p className='text-xs text-mute'>This driver signs in to the mobile app as <span className='font-semibold text-ink'>{editingDriver.email}</span>.</p>

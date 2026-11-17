@@ -50,10 +50,10 @@ services:
         sync: false # e.g. 611-drive-gps/1.0 (contact: your-email@example.com)
       # Optional: email (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, ADMIN_NOTIFY_EMAIL)
       # and payments (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET). Add them in the dashboard when you have them.
-      # Driver sign-up and sign-in codes are texted with Telnyx (TELNYX_API_KEY, TELNYX_FROM, optional TELNYX_MESSAGING_PROFILE_ID)
-      # or Twilio (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM): add them in the dashboard
-      # (sign-in codes switch on by themselves). Until then, to try the app only, set SMS_TEST_MODE=true: the code is
-      # shown in the app instead of being texted. Remove it before real use.
+      # Driver sign-up and sign-in codes are emailed, so set up email (SMTP_*): Gmail works (smtp.gmail.com, port 587,
+      # a Google app password). Render's free web services block outgoing SMTP, so use a paid plan or an email service
+      # with a web API. Until then, to try the app only, set CODE_TEST_MODE=true: the code is shown in the app instead
+      # of being emailed. Remove it before real use.
 
   # ---- Website ---------------------------------------------------------------------------------
   - type: web

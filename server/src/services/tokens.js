@@ -95,7 +95,7 @@ export async function rotateRefreshToken(db, config, raw, meta) {
     // A driver's session lasts at most the verification period (30 days) from when the code was entered,
     // however often the app is used; after that they sign in and are verified again.
     let maxExpiresAt = null;
-    if (user.role === 'DRIVER' && config.driverSmsLogin) {
+    if (user.role === 'DRIVER' && config.driverCodeLogin) {
       const origin = (await q.query('SELECT min(created_at) AS t FROM refresh_tokens WHERE family_id = $1', [row.family_id])).rows[0].t;
       maxExpiresAt = new Date(new Date(origin).getTime() + config.trustedDeviceDays * 24 * 60 * 60 * 1000);
       if (maxExpiresAt <= new Date()) return { error: 'expired', familyId: row.family_id };
