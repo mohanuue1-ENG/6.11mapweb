@@ -1,6 +1,9 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { asyncHandler, parse, badRequest, notFound } from '../errors.js';
+import { asyncHandler, parse, badRequest, notFound, forbidden } from '../errors.js';
+import { assertNoActiveTrip, endActiveAssignments } from '../services/fleet.js';
+import { audit } from '../services/audit.js';
 import { requireRole } from '../middleware/auth.js';
 import { uuid } from '../validation.js';
 import { resolveDriver, ingestBatch, toLocation } from '../services/gps.js';
@@ -185,6 +188,31 @@ export function driverSelfRoutes({ db, authenticate }) {
           : null,
         activeTrip: trip.rows[0] ? { id: trip.rows[0].id, startedAt: trip.rows[0].started_at } : null,
       });
+    }),
+  );
+
+  // DELETE /driver/me — the driver deletes their own account. Their sign-in, email and phone are removed; the trips they
+  // drove stay with the company under an inactive "Deleted driver" record. Needs the password and no trip in progress.
+  router.delete(
+    '/me',
+    asyncHandler(async (req, res) => {
+      const { password } = parse(z.object({ password: z.string().min(1).max(200) }).strict(), req.body);
+      const driver = await resolveDriver(db, req.auth);
+      const user = (await db.query('SELECT id, password_hash FROM users WHERE id = $1', [req.auth.userId])).rows[0];
+      if (!user || !(await bcrypt.compare(password, user.password_hash))) throw forbidden('That password is not correct.');
+      await db.tx(async (q) => {
+        await assertNoActiveTrip(q, req.auth.companyId, { driverId: driver.id });
+        await endActiveAssignments(q, req.auth.companyId, { driverId: driver.id });
+        await q.query(
+          `UPDATE drivers SET user_id = NULL, status = 'inactive', name = 'Deleted driver', phone = NULL,
+                  driver_number = NULL, license_number = NULL, license_state = NULL, license_expires_on = NULL, updated_at = now()
+            WHERE id = $1`,
+          [driver.id],
+        );
+        await q.query(`DELETE FROM users WHERE id = $1 AND role = 'DRIVER'`, [user.id]);
+        await audit(q, { companyId: req.auth.companyId, actorUserId: null, action: 'DRIVER_ACCOUNT_DELETED', details: { driverId: driver.id }, ip: req.ip });
+      });
+      res.status(204).end();
     }),
   );
 

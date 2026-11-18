@@ -287,3 +287,19 @@ test('the admin adds a driver with only a phone number; the name the driver type
   const list = await ctx.api().get(V1 + '/drivers').set(bearer(admin));
   assert.equal(list.body.drivers.find((d) => d.id === added.body.driver.id).name, 'Cali Warsame');
 });
+
+test('a driver can delete their own account with their password; the phone is freed and their login stops working', async () => {
+  const { number, email, password, session } = await signUp('Leaving Driver');
+  const send = (body) => mobile(ctx.api().delete(V1 + '/driver/me')).set(bearer(session)).send(body);
+  assert.equal((await send({ password: 'wrong-password-1' })).status, 403);
+  assert.equal((await send({ password })).status, 204);
+  const again = await post('/auth/login', { email, password });
+  assert.notEqual(again.status, 200);
+  assert.equal((await mobile(ctx.api().get(V1 + '/driver/me')).set(bearer(session))).status, 401);
+  const list = await ctx.api().get(V1 + '/drivers').set(bearer(admin));
+  const row = list.body.drivers.find((d) => d.name === 'Deleted driver' && d.status === 'inactive');
+  assert.ok(row, 'the company keeps an inactive record');
+  assert.equal(row.phone, null);
+  // the number can be used again by a new driver
+  assert.equal((await post('/drivers', { phone: number }, admin)).status, 201);
+});
