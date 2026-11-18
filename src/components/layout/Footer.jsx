@@ -15,6 +15,7 @@ export default function Footer() {
           <Link to="/pricing" className="hover:text-ink">Pricing</Link>
           <Link to="/about" className="hover:text-ink">About</Link>
           <Link to="/download" className="hover:text-ink">Get the app</Link>
+          <Link to="/privacy" className="hover:text-ink">Privacy</Link>
           <Link to="/create-account" className="hover:text-ink">Create account</Link>
           <Link to="/login" className="hover:text-ink">Sign in</Link>
         </nav>

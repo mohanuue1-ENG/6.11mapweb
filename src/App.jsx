@@ -17,6 +17,7 @@ import Contact from './pages/public/Contact';
 import RequestAccess from './pages/public/RequestAccess';
 import CreateAccount from './pages/public/CreateAccount';
 import Download from './pages/public/Download';
+import Privacy from './pages/public/Privacy';
 import { isFirstVisit, markSiteSeen } from './services/signupDraft';
 import SetPassword from './pages/public/SetPassword';
 import ForgotPassword from './pages/public/ForgotPassword';
@@ -118,6 +119,7 @@ function AppRoutes() {
       <Route path="/pricing" element={<PublicLayout><Pricing /></PublicLayout>} />
       <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
       <Route path="/download" element={<PublicLayout><Download /></PublicLayout>} />
+      <Route path="/privacy" element={<PublicLayout><Privacy /></PublicLayout>} />
       <Route path="/create-account" element={<GuestOnly><CreateAccount /></GuestOnly>} />
       <Route path="/join" element={<GuestOnly><RequestAccess /></GuestOnly>} />
       <Route path="/request-access" element={<Navigate to="/create-account" replace />} />
