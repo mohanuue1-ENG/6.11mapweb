@@ -51,7 +51,8 @@ const fields = {
 };
 const login = z.object({ email, password }).strict();
 
-const createSchema = z.object({ ...fields, status: status.default('active'), login: login.optional() }).strict();
+// Only the phone number is needed to add a driver; the name is filled in when the driver creates their account.
+const createSchema = z.object({ ...fields, name: requiredText(200).optional(), status: status.default('active'), login: login.optional() }).strict();
 // `login` on an update gives a driver who has no account yet their mobile sign-in.
 const updateSchema = z.object({ ...fields, login }).partial().strict();
 
@@ -121,6 +122,7 @@ export function driverRoutes({ db, config, authenticate }) {
     '/',
     asyncHandler(async (req, res) => {
       const input = parse(createSchema, req.body);
+      input.name = input.name ?? input.phone ?? 'New driver';
       const { companyId, userId } = req.auth;
 
       const row = await db.tx(async (q) => {

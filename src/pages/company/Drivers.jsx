@@ -33,22 +33,16 @@ export default function Drivers() {
 
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
     phoneDial: '1',
     phoneNational: '',
-    driverIdNumber: '',
-    licenseNumber: '',
     assignedTruckId: '',
   });
 
   const openAddModal = () => {
     setEditingDriver(null);
     setFormData({
-      name: '',
       phoneDial: '1',
       phoneNational: '',
-      driverIdNumber: '',
-      licenseNumber: '',
       assignedTruckId: '',
     });
     setFormError('');
@@ -59,11 +53,8 @@ export default function Drivers() {
     setEditingDriver(driver);
     const parts = splitPhone(driver.phone);
     setFormData({
-      name: driver.name,
       phoneDial: parts.dial,
       phoneNational: parts.national,
-      driverIdNumber: driver.driverIdNumber,
-      licenseNumber: driver.licenseNumber || '',
       assignedTruckId: driver.assignedTruckId || '',
     });
     setFormError('');
@@ -72,7 +63,7 @@ export default function Drivers() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (saving || !formData.name) return;
+    if (saving) return;
 
     const phone = joinPhone(formData.phoneDial, formData.phoneNational);
     if (phone.replace(/\D/g, '').length < 7) {
@@ -84,9 +75,9 @@ export default function Drivers() {
     setFormError('');
     try {
       if (editingDriver) {
-        await updateDriver(editingDriver.id, { ...formData, phone });
+        await updateDriver(editingDriver.id, { phone, assignedTruckId: formData.assignedTruckId });
       } else {
-        await addDriver({ ...formData, phone });
+        await addDriver({ phone, assignedTruckId: formData.assignedTruckId });
       }
       setModalOpen(false);
     } catch (err) {
@@ -120,8 +111,7 @@ export default function Drivers() {
   const filteredDrivers = drivers.filter((d) => {
     return (
       d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (d.phone || '').includes(searchQuery) ||
-      d.driverIdNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      (d.phone || '').includes(searchQuery)
     );
   });
 
@@ -137,7 +127,7 @@ export default function Drivers() {
             Driver Management
           </h1>
           <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Driver Name • Phone • Driver ID • Assign Truck • Mobile Account Setup • GPS Status
+            Phone • Assign Truck • Mobile Account • GPS Status
           </p>
         </div>
 
@@ -164,7 +154,7 @@ export default function Drivers() {
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by driver name, phone or ID..."
+            placeholder="Search by name or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
@@ -191,9 +181,7 @@ export default function Drivers() {
                 isDark ? 'border-white/10 bg-white/[0.02] text-gray-400' : 'border-gray-200 bg-gray-50 text-gray-600'
               }`}>
                 <th className="py-3.5 px-4 font-semibold">Driver Name</th>
-                <th className="py-3.5 px-4 font-semibold">Driver ID</th>
                 <th className="py-3.5 px-4 font-semibold">Phone Number</th>
-                <th className="py-3.5 px-4 font-semibold">Commercial License</th>
                 <th className="py-3.5 px-4 font-semibold">Assigned Truck</th>
                 <th className="py-3.5 px-4 font-semibold">Mobile App Account</th>
                 <th className="py-3.5 px-4 font-semibold">GPS status</th>
@@ -204,7 +192,7 @@ export default function Drivers() {
             <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-gray-100'}`}>
               {filteredDrivers.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-10 px-4 text-center text-gray-400">
+                  <td colSpan={7} className="py-10 px-4 text-center text-gray-400">
                     {fleetLoading ? 'Loading drivers…' : drivers.length === 0 ? 'No drivers yet. Add your first driver to get started.' : 'No drivers match your search.'}
                   </td>
                 </tr>
@@ -214,16 +202,10 @@ export default function Drivers() {
                 return (
                   <tr key={driver.id} className="hover:bg-dark-surface2/50 transition-colors">
                     <td className="py-4 px-4 font-semibold text-sm dark:text-white light:text-gray-900">
-                      {driver.name}
-                    </td>
-                    <td className="py-4 px-4 font-mono font-bold text-brand-green">
-                      {driver.driverIdNumber || '—'}
+                      {driver.hasLogin ? driver.name : <span className="text-gray-500 font-normal">Not signed up yet</span>}
                     </td>
                     <td className="py-4 px-4 font-mono text-mute">
                       {driver.phone || '—'}
-                    </td>
-                    <td className="py-4 px-4 font-mono text-gray-400 text-[11px]">
-                      {driver.licenseNumber || '—'}
                     </td>
                     <td className="py-4 px-4">
                       {assignedTruck ? (
@@ -307,13 +289,9 @@ export default function Drivers() {
 
       {/* Add / Edit Driver Modal */}
       {modalOpen && (
-        <Modal title={editingDriver ? `Edit ${editingDriver.name}` : 'Register new driver'} onClose={() => setModalOpen(false)}>
+        <Modal title={editingDriver ? 'Edit driver' : 'Add driver'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave} className='space-y-4'>
             <ErrorBanner message={formError} />
-            <Field label='Full name *'>
-              <input required className={field} placeholder='e.g. Liban Farole' value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-            </Field>
-
             <Field label='Phone number *'>
               <div className='flex gap-2'>
                 <select
@@ -340,14 +318,6 @@ export default function Drivers() {
               <p className='text-[11px] text-mute mt-1'>The driver enters this phone number in the app to create their account.</p>
             </Field>
 
-            <div className='grid grid-cols-2 gap-3'>
-              <Field label='Driver ID (optional)'>
-                <input className={`${field} uppercase`} placeholder='e.g. D105' value={formData.driverIdNumber} onChange={(e) => setFormData({ ...formData, driverIdNumber: e.target.value })} />
-              </Field>
-              <Field label='License number (CDL)'>
-                <input className={`${field} uppercase`} value={formData.licenseNumber} onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })} />
-              </Field>
-            </div>
             <Field label='Assigned truck'>
               <select className={field} value={formData.assignedTruckId} onChange={(e) => setFormData({ ...formData, assignedTruckId: e.target.value })}>
                 <option value=''>No truck assigned</option>
@@ -363,13 +333,13 @@ export default function Drivers() {
               {editingDriver?.hasLogin ? (
                 <>This driver has an app account (<span className='font-semibold text-ink'>{editingDriver.email}</span>).</>
               ) : (
-                'The driver opens the TRUKOVA app, enters their phone number, then their name and email, confirms a code sent to that email and chooses a password.'
+                'The driver opens the TRUKOVA app, enters this phone number, then their name and Gmail, confirms the code sent to that email and chooses a password.'
               )}
             </p>
 
             <div className='flex justify-end gap-2 pt-1'>
               <button type='button' onClick={() => setModalOpen(false)} className='px-4 py-2 text-xs font-semibold rounded-xl border border-line text-mute hover:text-ink'>Cancel</button>
-              <button type='submit' disabled={saving} className={primaryButton}>{saving ? 'Saving…' : editingDriver ? 'Save changes' : 'Register driver'}</button>
+              <button type='submit' disabled={saving} className={primaryButton}>{saving ? 'Saving…' : editingDriver ? 'Save changes' : 'Add driver'}</button>
             </div>
           </form>
         </Modal>

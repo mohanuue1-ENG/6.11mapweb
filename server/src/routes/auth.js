@@ -215,7 +215,8 @@ export function authRoutes({ db, config, authenticate, mailer }) {
           [locked.company_id, input.name, input.email, hash],
         );
         const newUserId = user.rows[0].id;
-        await q.query('UPDATE drivers SET user_id = $2, updated_at = now() WHERE id = $1', [locked.id, newUserId]);
+        // The name the driver typed becomes the driver's name everywhere (the app and the company's Drivers page).
+        await q.query('UPDATE drivers SET user_id = $2, name = $3, updated_at = now() WHERE id = $1', [locked.id, newUserId, input.name]);
         await audit(q, { companyId: locked.company_id, actorUserId: newUserId, action: 'DRIVER_REGISTERED', details: { driverId: locked.id }, ip: req.ip });
         const token = await issueRefreshToken(q, config, {
           userId: newUserId,

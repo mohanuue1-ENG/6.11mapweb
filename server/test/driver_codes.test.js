@@ -274,3 +274,16 @@ test('without email set up, development hands the code back so the flow can be t
     await dev.db.close();
   }
 });
+
+test('the admin adds a driver with only a phone number; the name the driver types at sign-up becomes the driver\'s name', async () => {
+  const number = uniquePhone();
+  const added = await post('/drivers', { phone: number }, admin);
+  assert.equal(added.status, 201, JSON.stringify(added.body));
+  assert.equal(added.body.driver.hasLogin, false);
+  const email = uniqueEmail('driver');
+  assert.equal((await post('/auth/driver/request-code', { phone: number, email })).status, 202);
+  const reg = await post('/auth/driver/register', { phone: number, email, code: lastCode(email), name: 'Cali Warsame', password: strongPassword(), remember: false });
+  assert.equal(reg.status, 201, JSON.stringify(reg.body));
+  const list = await ctx.api().get(V1 + '/drivers').set(bearer(admin));
+  assert.equal(list.body.drivers.find((d) => d.id === added.body.driver.id).name, 'Cali Warsame');
+});
