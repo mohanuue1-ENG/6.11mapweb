@@ -1,0 +1,88 @@
+# .github/workflows/ci-cd.yml
+#
+# Runs on every push to main and every pull request.
+#   Job "build": installs, tests the server, builds the website, checks that the
+#                server starts and answers, and packs release.tar.gz.
+# Deploy: Render deploys main by itself (see render.yaml), so there is no deploy job.
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# The workflow can read the repository and nothing more.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Get the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - name: Install website packages
+        run: npm ci
+
+      - name: Install server packages
+        run: npm ci
+        working-directory: server
+
+      - name: Check for known security problems
+        run: |
+          npm audit --omit=dev --audit-level=high
+          npm audit --omit=dev --audit-level=high --prefix server
+
+      - name: Test the server
+        run: npm test
+        working-directory: server
+        env:
+          NODE_ENV: test
+
+      - name: Build the website
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      - name: Start the server and check that it answers
+        working-directory: server
+        run: |
+          PORT=4000 node src/server.js &
+          curl --fail --silent --retry 10 --retry-delay 2 --retry-connrefused http://127.0.0.1:4000/api/v1/health
+          echo
+          echo "The server starts and answers."
+
+      # Pull requests are only checked. Only main is packed.
+      - name: Pack the release
+        if: github.event_name != 'pull_request'
+        run: |
+          tar --exclude=./.git --exclude=./node_modules --exclude=./server/node_modules -czf "$RUNNER_TEMP/release.tar.gz" .
+          mv "$RUNNER_TEMP/release.tar.gz" release.tar.gz
+          sha256sum release.tar.gz | cut -d ' ' -f 1 > release.sha256
+          echo "Packed release.tar.gz ($(du -h release.tar.gz | cut -f 1))"
+
+      - name: Save the release
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: |
+            release.tar.gz
+            release.sha256
+          retention-days: 7
+          compression-level: 0
