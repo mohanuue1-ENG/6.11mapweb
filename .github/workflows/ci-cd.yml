@@ -104,8 +104,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # The secrets live in the "production" environment.
-    environment: production
+    # The secrets live in the "automatic deploy" environment.
+    environment: automatic deploy
     # Never run two deploys at the same time: wait for the first to finish.
     concurrency:
       group: production
