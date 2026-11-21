@@ -1,9 +1,11 @@
 # .github/workflows/ci-cd.yml
 #
-# Runs on every push to main and every pull request.
-#   Job "build": installs, tests the server, builds the website, checks that the
-#                server starts and answers, and packs release.tar.gz.
-# Deploy: Render deploys main by itself (see render.yaml), so there is no deploy job.
+# Runs on every push and every pull request.
+#   Job 1 "build":  installs, tests the server, builds the website, checks that
+#                   the server starts, and packs it into release.tar.gz.
+#   Job 2 "deploy": sends release.tar.gz to the server (main branch only).
+#                   It runs only when the variable DEPLOY_ENABLED is "true",
+#                   so the workflow stays green until the server is ready.
 name: CI/CD
 
 on:
@@ -54,10 +56,17 @@ jobs:
         env:
           NODE_ENV: test
 
+      # Public settings for the browser (VITE_...), from the GitHub variable
+      # VITE_API_URL. Vite reads it while building.
       - name: Build the website
         run: npm run build
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      - name: Remove packages only needed for building
+        run: |
+          npm prune --omit=dev
+          npm prune --omit=dev --prefix server
 
       - name: Start the server and check that it answers
         working-directory: server
@@ -67,11 +76,11 @@ jobs:
           echo
           echo "The server starts and answers."
 
-      # Pull requests are only checked. Only main is packed.
+      # Pull requests are only checked. Only main is packed for the server.
       - name: Pack the release
         if: github.event_name != 'pull_request'
         run: |
-          tar --exclude=./.git --exclude=./node_modules --exclude=./server/node_modules -czf "$RUNNER_TEMP/release.tar.gz" .
+          tar --exclude=./.git --exclude=./server/.data -czf "$RUNNER_TEMP/release.tar.gz" .
           mv "$RUNNER_TEMP/release.tar.gz" release.tar.gz
           sha256sum release.tar.gz | cut -d ' ' -f 1 > release.sha256
           echo "Packed release.tar.gz ($(du -h release.tar.gz | cut -f 1))"
@@ -86,3 +95,48 @@ jobs:
             release.sha256
           retention-days: 7
           compression-level: 0
+
+  deploy:
+    name: Deploy to the server
+    needs: build
+    # Only for main (a push or a manual run), never for pull requests, and only
+    # once the variable DEPLOY_ENABLED is set to "true" in the repository.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # The secrets live in the "production" environment.
+    environment: production
+    # Never run two deploys at the same time: wait for the first to finish.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - name: Download the release
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+
+      - name: Set up the SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Sends the release and the server's settings (the secret APP_ENV, the
+      # contents of server/.env) together, in one bundle.
+      - name: Send the release to the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          APP_ENV: ${{ secrets.APP_ENV }}
+        run: |
+          printf '%s\n' "$APP_ENV" | tr -d '\r' > app.env
+          tar -cf - release.tar.gz app.env | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "deploy@$DEPLOY_HOST" "$GITHUB_SHA $(cat release.sha256)"
+
+      - name: Delete the SSH key and the settings
+        if: always()
+        run: rm -f ~/.ssh/deploy_key app.env
