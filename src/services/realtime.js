@@ -1,4 +1,4 @@
-// 6.11 Drive GPS - live updates over Socket.IO.
+// 6.11 BIS - live updates over Socket.IO.
 //
 // The server only accepts a connection that presents a valid access token and
 // closes it when that token expires. This module keeps the connection alive

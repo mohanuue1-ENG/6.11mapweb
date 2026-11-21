@@ -21,7 +21,7 @@ export default function Footer() {
         </nav>
       </div>
       <div className="border-t border-line">
-        <p className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-mute">© {new Date().getFullYear()} 6.11 Drive GPS</p>
+        <p className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-mute">© {new Date().getFullYear()} 6.11 BIS</p>
       </div>
     </footer>
   );

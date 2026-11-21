@@ -38,7 +38,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-gray-500">© {new Date().getFullYear()} 6.11 Drive GPS</p>
+        <p className="relative text-xs text-gray-500">© {new Date().getFullYear()} 6.11 BIS</p>
       </aside>
 
       <main className="flex flex-col">

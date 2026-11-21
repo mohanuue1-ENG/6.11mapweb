@@ -1,4 +1,4 @@
-// 6.11 Drive GPS - Storage & Seed Database Service
+// 6.11 BIS - Storage & Seed Database Service
 // Strictly follows PRD Database Requirements & Data Isolation
 
 const STORAGE_KEYS = {

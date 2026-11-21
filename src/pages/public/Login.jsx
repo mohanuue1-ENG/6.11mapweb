@@ -42,7 +42,7 @@ export default function Login() {
       subtitle="Welcome back. Enter your details to open your dashboard."
       footer={
         <div className="space-y-3 pt-6 border-t border-line">
-          <p>New to 6.11 Drive GPS?</p>
+          <p>New to 6.11 BIS?</p>
           <Link
             to="/create-account"
             className="flex h-12 w-full items-center justify-center rounded-xl border-2 border-brand-green text-accent font-semibold hover:bg-brand-green/10 transition-colors"

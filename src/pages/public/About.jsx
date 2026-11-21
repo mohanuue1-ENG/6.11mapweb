@@ -13,9 +13,9 @@ export default function About() {
   return (
     <div className={`${wrap} py-14 space-y-10`}>
       <div className="max-w-2xl space-y-3">
-        <h1 className="text-4xl font-extrabold tracking-tight">About 6.11 Drive GPS</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight">About 6.11 BIS</h1>
         <p className="text-mute text-lg leading-relaxed">
-          6.11 Drive GPS helps trucking companies see where their trucks are and what they have done, using the phones their drivers already carry.
+          6.11 BIS helps trucking companies see where their trucks are and what they have done, using the phones their drivers already carry.
         </p>
       </div>
       <div className="grid md:grid-cols-3 gap-5">

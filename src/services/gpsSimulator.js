@@ -1,4 +1,4 @@
-// 6.11 Drive GPS - Continuous 24/7 GPS Tracking & Socket.IO Simulation Engine
+// 6.11 BIS - Continuous 24/7 GPS Tracking & Socket.IO Simulation Engine
 // Meets PRD Sections 4, 7, 15, and 17: continuous movement updates, separate GPS breadcrumb logging,
 // and trip distance calculation.
 

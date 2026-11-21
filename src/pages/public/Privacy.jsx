@@ -8,8 +8,8 @@ const SECTIONS = [
   {
     title: 'Who we are',
     body: [
-      'TRUKOVA (also called 6.11 Drive GPS) is a fleet tracking service. Trucking companies use the website to see where their trucks are and what they have done. Their drivers use the TRUKOVA mobile app, which shares the phone’s location while the driver chooses to share it.',
-      'This policy explains what information the website and the app handle, why, and what choices you have. It applies to the TRUKOVA website and to the TRUKOVA driver app for Android and iOS.',
+      '6.11 BIS is a fleet tracking service. Trucking companies use the website to see where their trucks are and what they have done. Their drivers use the 6.11 BIS mobile app, which shares the phone’s location while the driver chooses to share it.',
+      'This policy explains what information the website and the app handle, why, and what choices you have. It applies to the 6.11 BIS website and to the 6.11 BIS driver app for Android and iOS.',
     ],
   },
   {
@@ -72,7 +72,7 @@ const SECTIONS = [
   },
   {
     title: 'Children',
-    body: ['TRUKOVA is for working adults. It is not directed to children under 16 and we do not knowingly collect their information.'],
+    body: ['6.11 BIS is for working adults. It is not directed to children under 16 and we do not knowingly collect their information.'],
   },
   {
     title: 'Changes to this policy',

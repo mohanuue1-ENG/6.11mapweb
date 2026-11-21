@@ -333,7 +333,7 @@ export default function Drivers() {
               {editingDriver?.hasLogin ? (
                 <>This driver has an app account (<span className='font-semibold text-ink'>{editingDriver.email}</span>).</>
               ) : (
-                'The driver opens the TRUKOVA app, enters this phone number, then their name and Gmail, confirms the code sent to that email and chooses a password.'
+                'The driver opens the 6.11 BIS app, enters this phone number, then their name and Gmail, confirms the code sent to that email and chooses a password.'
               )}
             </p>
 

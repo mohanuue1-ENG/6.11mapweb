@@ -1,4 +1,4 @@
-// 6.11 Drive GPS - API client for the backend (/api/v1).
+// 6.11 BIS - API client for the backend (/api/v1).
 //
 // The access token lives only in memory. The refresh token is an httpOnly
 // cookie the browser sends by itself, so JavaScript never sees it and nothing

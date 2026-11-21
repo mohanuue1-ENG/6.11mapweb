@@ -114,12 +114,12 @@ export default function DashboardLayout({ children }) {
         <div className={`h-14 flex items-center justify-between px-4 border-b ${isDark ? 'border-white/10' : 'border-[#E5E7EB]'}`}>
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#22C55E]/40 bg-[#080B10]">
-              <img src="/assets/logo.jpg" alt="6.11 GPS" className="w-full h-full object-cover" />
+              <img src="/assets/logo.jpg" alt="6.11 BIS" className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-sm tracking-tight flex items-center gap-1">
                 <span className="text-[#22C55E]">6.11</span>
-                <span>DRIVE GPS</span>
+                <span>BIS</span>
               </span>
               <span className="text-[9px] uppercase tracking-wider text-[#22C55E] font-bold">
                 {isSuperAdmin ? 'SUPER ADMIN' : user?.companyName || 'COMPANY FLEET'}
