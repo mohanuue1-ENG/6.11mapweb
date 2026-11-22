@@ -6,6 +6,7 @@ import { api, errorMessage } from '../../services/api';
 import { dateTime, mph } from '../../services/format';
 import { ErrorBanner, Field, PageHeader, Panel, Spinner, primaryButton, useFieldClass } from '../../components/common/ui';
 import RouteReplayMap from '../../components/maps/RouteReplayMap';
+import RouteGlobe from '../../components/maps/RouteGlobe';
 
 const LIMIT = 1000;
 // <input type="datetime-local"> wants local "YYYY-MM-DDTHH:mm".
@@ -26,6 +27,8 @@ export default function GpsLocationHistory() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // The globe is the first view; the street map shows the same points on real roads.
+  const [view, setView] = useState('globe');
 
   useEffect(() => {
     if (!truckId && trucks.length) setTruckId(trucks[0].id);
@@ -85,11 +88,30 @@ export default function GpsLocationHistory() {
       {result && (
         <>
           <Panel className="space-y-3">
-            <div className={`text-xs ${muted}`}>
-              {result.points.length} point{result.points.length === 1 ? '' : 's'}
-              {result.hasMore && ` — showing the newest ${LIMIT}. Narrow the time range to see the rest.`}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className={`text-xs ${muted}`}>
+                {result.points.length} point{result.points.length === 1 ? '' : 's'}
+                {result.hasMore && ` — showing the newest ${LIMIT}. Narrow the time range to see the rest.`}
+              </div>
+              <div className={`inline-flex rounded-xl p-0.5 border ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`} role="tablist" aria-label="Map view">
+                {[['globe', 'Globe'], ['map', 'Road map']].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === id}
+                    onClick={() => setView(id)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                      view === id ? 'bg-brand-green text-[#052E16]' : isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <RouteReplayMap route={route} height="420px" />
+            {view === 'globe' ? <RouteGlobe route={route} height="460px" /> : <RouteReplayMap route={route} height="420px" />}
+            {view === 'globe' && route.length > 0 && <p className={`text-[11px] ${muted}`}>Drag the globe to turn it. Open “Road map” to see the exact roads the truck used.</p>}
           </Panel>
 
           {result.points.length > 0 && (

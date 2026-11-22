@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import StatCard from '../../components/common/StatCard';
-import LiveTrackingMap from '../../components/maps/LiveTrackingMap';
+import LiveGlobe from '../../components/common/LiveGlobe';
 import TruckPlace from '../../components/common/TruckPlace';
 import {
   Truck,
@@ -30,14 +30,11 @@ export default function CompanyDashboard() {
   const { user, company } = useAuth();
   const { trucks, drivers, trips, notifications } = useGps();
   const { theme } = useTheme();
-  const [selectedTruckId, setSelectedTruckId] = useState(trucks.length > 0 ? trucks[0].id : null);
-  // Every tap on a truck card asks the map to go to that truck, even when it is already selected.
-  const [focus, setFocus] = useState(null);
-  const selectTruck = (truck) => {
-    setSelectedTruckId(truck.id);
-    setFocus({ id: truck.id, n: Date.now() });
-    document.getElementById('dashboard-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  const navigate = useNavigate();
+  // The truck the globe is showing now, highlighted in the list.
+  const [shownId, setShownId] = useState(null);
+  // A tap on a truck opens the Live Map page on that truck.
+  const openOnMap = (truck) => navigate(`/company/live-tracking?truck=${encodeURIComponent(truck.id)}`);
 
   const isDark = theme === 'dark';
 
@@ -52,6 +49,7 @@ export default function CompanyDashboard() {
   const alertCount = notifications.filter((n) => !n.read).length;
 
   const recentTrips = trips.slice(0, 4);
+  const share = (n) => `${totalTrucks ? Math.round((n / totalTrucks) * 100) : 0}%`;
 
   return (
     <div className="space-y-6 pb-8">
@@ -115,85 +113,27 @@ export default function CompanyDashboard() {
         </div>
       </div>
 
-      {/* PRD Section 9.3: KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-        <StatCard
-          title="Total Trucks"
-          value={totalTrucks}
-          icon={Truck}
-          color="green"
-          subtitle="Registered units"
-        />
-        <StatCard
-          title="Moving Trucks"
-          value={movingTrucks}
-          icon={Navigation}
-          color="green"
-          subtitle="Speed > 0 mph"
-          trend="Active GPS"
-        />
-        <StatCard
-          title="Stopped Trucks"
-          value={stoppedTrucks}
-          icon={StopCircle}
-          color="red"
-          subtitle="At dock / yard"
-        />
-        <StatCard
-          title="Active Drivers"
-          value={activeDrivers}
-          icon={Users}
-          color="blue"
-          subtitle="Assigned operators"
-        />
-        <StatCard
-          title="Active Trips"
-          value={activeTrips}
-          icon={PlayCircle}
-          color="green"
-          subtitle="Journeys underway"
-        />
-        <StatCard
-          title="GPS Alerts"
-          value={alertCount}
-          icon={AlertTriangle}
-          color={alertCount > 0 ? 'amber' : 'gray'}
-          subtitle="Unread warnings"
-          trend={alertCount > 0 ? `${alertCount} New` : null}
-        />
+      {/* Summary numbers */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <StatCard title="Total trucks" value={totalTrucks} icon={Truck} color="blue" subtitle="In your fleet" />
+        <StatCard title="Moving" value={movingTrucks} icon={Navigation} color="green" subtitle={`${share(movingTrucks)} of fleet`} />
+        <StatCard title="Stopped" value={stoppedTrucks} icon={StopCircle} color="amber" subtitle={`${share(stoppedTrucks)} of fleet`} />
+        <StatCard title="Offline" value={offlineTrucks} icon={WifiOff} color="gray" subtitle={`${share(offlineTrucks)} of fleet`} />
+        <StatCard title="Active drivers" value={activeDrivers} icon={Users} color="blue" subtitle="Assigned operators" />
+        <StatCard title="Active trips" value={activeTrips} icon={PlayCircle} color="green" subtitle={alertCount > 0 ? `${alertCount} unread alert${alertCount === 1 ? '' : 's'}` : 'Journeys underway'} />
       </div>
 
       {/* Main Grid: Prominent Live GPS Map + Live Trucks Panel (PRD 9.3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Prominent Live GPS Map Canvas (2 cols) */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] animate-pulse"></span>
-              Live map
-            </h2>
-            <Link
-              to="/company/live-tracking"
-              className="text-xs text-[#22C55E] hover:underline flex items-center gap-1 font-semibold"
-            >
-              Expand Full Live Tracking <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          <div id="dashboard-map" className={`p-2 rounded-3xl border ${isDark ? 'bg-[#0B0F14] border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
-            <LiveTrackingMap
-              trucks={trucks}
-              selectedTruckId={selectedTruckId}
-              focus={focus}
-              onSelectTruck={(trk) => setSelectedTruckId(trk.id)}
-              height="480px"
-            />
-          </div>
+        {/* The globe turns to a different live truck every 10 seconds (2 cols). The full map is on the Live Map page. */}
+        <div className="lg:col-span-2">
+          <LiveGlobe trucks={trucks} drivers={drivers} onOpen={openOnMap} onShow={setShownId} />
         </div>
 
         {/* Right: Live Trucks Compact Panel (PRD 9.3) */}
-        <div className="space-y-4">
+        <div className="h-full min-h-0">
           <div
-            className={`p-4 rounded-3xl border space-y-3 flex flex-col h-[525px] ${
+            className={`p-4 rounded-3xl border space-y-3 flex flex-col h-full min-h-[420px] max-h-[640px] ${
               isDark
                 ? 'bg-[#0B0F14] border-white/10 text-white shadow-xl'
                 : 'bg-white border-gray-200 text-[#111827] shadow-sm'
@@ -205,56 +145,36 @@ export default function CompanyDashboard() {
               </h3>
             </div>
 
-            {/* Scrollable list of compact truck cards */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            {/* One line per truck, one under the other */}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {trucks.length === 0 && <p className={`text-xs py-6 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No trucks yet.</p>}
               {trucks.map((truck) => {
                 const driver = drivers.find((d) => d.id === truck.assignedDriverId);
-                const isSelected = selectedTruckId === truck.id;
+                const isSelected = shownId === truck.id;
+                const dot = truck.trackingStatus === 'moving' ? '#22C55E' : truck.trackingStatus === 'stopped' ? '#F59E0B' : '#94A3B8';
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={truck.id}
-                    onClick={() => selectTruck(truck)}
-                    className={`p-3 rounded-2xl border cursor-pointer transition-all ${
+                    onClick={() => openOnMap(truck)}
+                    title={`Open Live Map on truck ${truck.truckNumber}`}
+                    className={`w-full h-11 px-3 rounded-xl border flex items-center gap-2.5 text-left text-xs whitespace-nowrap transition-colors ${
                       isSelected
-                        ? 'border-[#22C55E] bg-[#22C55E]/15 shadow-md shadow-[#22C55E]/15'
+                        ? 'border-[#22C55E] bg-[#22C55E]/12'
                         : isDark
-                        ? 'border-white/10 hover:border-[#22C55E]/50 bg-white/5'
-                        : 'border-gray-200 hover:border-gray-300 bg-gray-50'
+                        ? 'border-white/10 bg-white/5 hover:border-[#22C55E]/60'
+                        : 'border-gray-200 bg-gray-50 hover:border-[#22C55E]/60'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Truck className={`w-4 h-4 ${isSelected ? 'text-[#22C55E]' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                        <span className="font-bold text-sm">
-                          Truck #{truck.truckNumber}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase font-numbers ${
-                          truck.trackingStatus === 'moving'
-                            ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40'
-                            : truck.trackingStatus === 'stopped'
-                            ? 'bg-[#EF4444]/20 text-[#EF4444] border border-[#EF4444]/40'
-                            : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        ● {truck.trackingStatus}
-                      </span>
-                    </div>
-
-                    <div className={`flex items-center justify-between text-xs mt-1.5 font-numbers ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
-                      <span>Driver: {driver ? driver.name : 'Unassigned'}</span>
-                      <span className={`font-bold ${isDark ? 'text-white' : 'text-[#111827]'}`}>{truck.speed} mph</span>
-                    </div>
-
-                    <TruckPlace truck={truck} className={`text-[11px] mt-1 truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-
-                    <div className={`flex items-center justify-between text-[10px] mt-1.5 pt-1.5 border-t font-numbers ${
-                      isDark ? 'text-gray-500 border-white/5' : 'text-gray-500 border-gray-200'
-                    }`}>
-                      <span>Updated: {new Date(truck.lastUpdate).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dot }} aria-label={truck.trackingStatus} />
+                    <Truck className={`w-4 h-4 shrink-0 ${isSelected ? 'text-[#22C55E]' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <span className={`font-bold shrink-0 ${isDark ? 'text-white' : 'text-[#111827]'}`}>#{truck.truckNumber}</span>
+                    <span className={`flex-1 truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{driver ? driver.name : 'Unassigned'}</span>
+                    <span className={`font-bold font-numbers shrink-0 ${isDark ? 'text-white' : 'text-[#111827]'}`}>{Math.round(truck.speed || 0)} mph</span>
+                    <span className={`font-numbers shrink-0 w-14 text-right ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      {truck.lastUpdate ? new Date(truck.lastUpdate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                    </span>
+                  </button>
                 );
               })}
             </div>

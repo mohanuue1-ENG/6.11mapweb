@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import LiveTrackingMap from '../../components/maps/LiveTrackingMap';
+import FleetGlobe from '../../components/maps/FleetGlobe';
+import { api } from '../../services/api';
+import { dateTime } from '../../services/format';
 import TruckPlace from '../../components/common/TruckPlace';
 import {
   Truck,
@@ -25,12 +29,56 @@ export default function LiveTracking() {
   const [statusFilter, setStatusFilter] = useState('all');
   // Every click on a truck asks the map to go to it, even when it is already the selected one.
   const [focus, setFocus] = useState(null);
+  // The globe is the first view; the street map shows the same trucks on roads.
+  const [view, setView] = useState('globe');
+  // The truck the globe is zoomed to, and the trip it is on now (start to here).
+  const [globeId, setGlobeId] = useState(null);
+  const [trip, setTrip] = useState(null);
   const selectTruck = (truck) => {
     setSelectedTruckId(truck.id);
     setFocus({ id: truck.id, n: Date.now() });
+    setGlobeId(truck.id);
   };
 
+  // The dashboard globe opens this page with ?truck=<id>: go straight to that truck.
+  const [params] = useSearchParams();
+  const wantedTruck = params.get('truck');
+  useEffect(() => {
+    if (!wantedTruck) return;
+    const hit = trucks.find((t) => String(t.id) === wantedTruck);
+    if (hit) {
+      setSelectedTruckId(hit.id);
+      setFocus({ id: hit.id, n: Date.now() });
+    }
+  }, [wantedTruck, trucks.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedTruck = trucks.find((t) => t.id === selectedTruckId) || trucks[0];
+
+  // Load the active trip of the truck the globe is on: where it started and the road it has driven since.
+  useEffect(() => {
+    let cancelled = false;
+    setTrip(null);
+    if (!globeId) return undefined;
+    (async () => {
+      try {
+        const list = await api(`/trips?status=ACTIVE&truckId=${encodeURIComponent(globeId)}&limit=1`);
+        const first = list.trips?.[0];
+        if (!first) {
+          if (!cancelled) setTrip({ none: true });
+          return;
+        }
+        const detail = await api(`/trips/${first.id}`);
+        if (!cancelled) setTrip({ info: detail.trip, route: detail.route || [] });
+      } catch {
+        if (!cancelled) setTrip({ none: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [globeId, trucks.find((t) => t.id === globeId)?.lastUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
+  const globeTruck = trucks.find((t) => t.id === globeId) || null;
+  const globeDriver = globeTruck ? drivers.find((d) => d.id === globeTruck.assignedDriverId) : null;
 
   const filteredTrucks = trucks.filter((t) => {
     const matchesSearch =
@@ -75,14 +123,83 @@ export default function LiveTracking() {
       {/* Main Split: Map-First on mobile, 4-col split on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Right Column (Map): Order 1 on mobile (Map-First PRD), Order 2 on desktop */}
-        <div className="order-1 lg:order-2 lg:col-span-3">
-          <LiveTrackingMap
-            trucks={trucks}
-            selectedTruckId={selectedTruckId}
-            focus={focus}
-            onSelectTruck={(truck) => setSelectedTruckId(truck.id)}
-            height="clamp(440px, 72vh, 720px)"
-          />
+        <div className="order-1 lg:order-2 lg:col-span-3 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className={`inline-flex rounded-xl p-0.5 border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white'}`} role="tablist" aria-label="Map view">
+              {[['globe', 'Globe'], ['map', 'Road map']].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === id}
+                  onClick={() => setView(id)}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                    view === id ? 'bg-[#22C55E] text-[#052E16]' : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {view === 'globe' && globeId && (
+              <button type="button" onClick={() => setGlobeId(null)} className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${theme === 'dark' ? 'border-white/10 text-gray-200 hover:bg-white/5' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                Back to world
+              </button>
+            )}
+          </div>
+
+          {view === 'globe' ? (
+            <>
+              <FleetGlobe
+                trucks={trucks}
+                selectedId={globeId}
+                route={trip?.route || []}
+                onSelect={selectTruck}
+                height="clamp(420px, 60vh, 620px)"
+              />
+              {globeTruck && (
+                <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'bg-[#0B0F14] border-[#1F2937] text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'}`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-base">Truck #{globeTruck.truckNumber}</span>
+                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#22C55E]/15 text-[#16A34A]">{globeTruck.trackingStatus}</span>
+                    <span className="text-xs text-[#6B7280]">Driver: {globeDriver ? globeDriver.name : 'Unassigned'}</span>
+                    <span className="ml-auto text-sm font-bold">{Math.round(globeTruck.speed || 0)} mph</span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-xs">
+                    {trip === null && <div className="text-[#6B7280]">Loading the trip…</div>}
+                    {trip?.none && <div className="text-[#6B7280]">No trip is running now. The globe shows where the truck was last seen.</div>}
+                    {trip?.info && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] mt-1 shrink-0" />
+                          <div>
+                            <div className="font-semibold">Trip started {dateTime(trip.info.startedAt)}</div>
+                            {trip.route[0] && <TruckPlace truck={{ currentLat: trip.route[0].latitude, currentLng: trip.route[0].longitude }} className="text-[#6B7280] truncate" />}
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] mt-1 shrink-0" />
+                          <div>
+                            <div className="font-semibold">Now</div>
+                            <TruckPlace truck={globeTruck} className="text-[#6B7280] truncate" />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              {!globeTruck && <p className="text-[11px] text-[#9CA3AF]">Press a truck on the globe or in the list to see where its trip started and where it is now.</p>}
+            </>
+          ) : (
+            <LiveTrackingMap
+              trucks={trucks}
+              selectedTruckId={selectedTruckId}
+              focus={focus}
+              onSelectTruck={(truck) => setSelectedTruckId(truck.id)}
+              height="clamp(440px, 72vh, 720px)"
+            />
+          )}
         </div>
 
         {/* Left Column: Fleet List & Search (Order 2 on mobile, Order 1 on desktop) */}

@@ -115,62 +115,11 @@ export default function Drivers() {
     );
   });
 
-  return (
-    <div className="space-y-6 pb-12 font-sans">
-      {/* Top Banner */}
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl border transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
-      }`}>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2">
-            <Users className="w-6 h-6 text-brand-green" />
-            Driver Management
-          </h1>
-          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Phone • Assign Truck • Mobile Account • GPS Status
-          </p>
-        </div>
+  const activeDrivers = filteredDrivers.filter((d) => d.status === 'active');
+  const inactiveDrivers = filteredDrivers.filter((d) => d.status !== 'active');
 
-        <button
-          onClick={openAddModal}
-          className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20"
-        >
-          <PlusCircle className="w-4 h-4" /> Add New Driver
-        </button>
-      </div>
-
-      {(pageError || fleetError) && (
-        <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{(pageError || fleetError)}</span>
-        </div>
-      )}
-
-      {/* Search Bar */}
-      <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10' : 'bg-white border-gray-200 shadow-sm'
-      }`}>
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
-              isDark
-                ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500'
-                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-            }`}
-          />
-        </div>
-
-        <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          Total Registered Drivers: <span className="text-brand-green font-bold">{drivers.length}</span>
-        </div>
-      </div>
-
-      {/* Drivers Table */}
+  // One table of drivers. Active and inactive drivers are shown apart.
+  const driverTable = (list, emptyText) => (
       <div className={`rounded-3xl border overflow-hidden shadow-xl transition-colors ${
         isDark ? 'border-white/10 bg-[#0B0F14] text-white' : 'border-gray-200 bg-white text-[#111827]'
       }`}>
@@ -190,14 +139,14 @@ export default function Drivers() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-gray-100'}`}>
-              {filteredDrivers.length === 0 && (
+              {list.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-10 px-4 text-center text-gray-400">
-                    {fleetLoading ? 'Loading drivers…' : drivers.length === 0 ? 'No drivers yet. Add your first driver to get started.' : 'No drivers match your search.'}
+                    {emptyText}
                   </td>
                 </tr>
               )}
-              {filteredDrivers.map((driver) => {
+              {list.map((driver) => {
                 const assignedTruck = trucks.find((t) => t.id === driver.assignedTruckId);
                 return (
                   <tr key={driver.id} className="hover:bg-dark-surface2/50 transition-colors">
@@ -255,7 +204,7 @@ export default function Drivers() {
                         <button
                           onClick={() => openEditModal(driver)}
                           title="Edit Driver"
-                          className="p-1.5 rounded-lg border border-dark-border text-gray-400 hover:text-white hover:bg-dark-card transition-colors"
+                          className="p-1.5 rounded-lg border border-dark-border text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-dark-card transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -286,6 +235,80 @@ export default function Drivers() {
           </table>
         </div>
       </div>
+  );
+
+  return (
+    <div className="space-y-6 pb-12 font-sans">
+      {/* Top Banner */}
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl border transition-colors ${
+        isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
+      }`}>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2">
+            <Users className="w-6 h-6 text-brand-green" />
+            Driver Management
+          </h1>
+          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Phone • Assign Truck • Mobile Account • GPS Status
+          </p>
+        </div>
+
+        <button
+          onClick={openAddModal}
+          className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20"
+        >
+          <PlusCircle className="w-4 h-4" /> Add New Driver
+        </button>
+      </div>
+
+      {(pageError || fleetError) && (
+        <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{(pageError || fleetError)}</span>
+        </div>
+      )}
+
+      {/* Search Bar */}
+      <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-colors ${
+        isDark ? 'bg-[#0B0F14] border-white/10' : 'bg-white border-gray-200 shadow-sm'
+      }`}>
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or phone..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
+              isDark
+                ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500'
+                : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+            }`}
+          />
+        </div>
+
+        <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          Total Registered Drivers: <span className="text-brand-green font-bold">{drivers.length}</span>
+        </div>
+      </div>
+
+      {/* Active drivers */}
+      <section className="space-y-2">
+        <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#111827]'}`}>
+          <span className="w-2.5 h-2.5 rounded-full bg-brand-green" /> Active drivers
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>{activeDrivers.length}</span>
+        </h2>
+        {driverTable(activeDrivers, fleetLoading ? 'Loading drivers…' : drivers.length === 0 ? 'No drivers yet. Add your first driver to get started.' : 'No active drivers match your search.')}
+      </section>
+
+      {/* Inactive drivers */}
+      <section className="space-y-2">
+        <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-[#111827]'}`}>
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Inactive drivers
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>{inactiveDrivers.length}</span>
+        </h2>
+        {driverTable(inactiveDrivers, 'No inactive drivers.')}
+      </section>
 
       {/* Add / Edit Driver Modal */}
       {modalOpen && (

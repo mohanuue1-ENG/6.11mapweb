@@ -4,11 +4,14 @@ import { api, errorMessage } from '../../services/api';
 import { coords, dateTime, duration, miles } from '../../services/format';
 import { ErrorBanner, Modal, Spinner } from '../../components/common/ui';
 import RouteReplayMap from '../../components/maps/RouteReplayMap';
+import RouteGlobe from '../../components/maps/RouteGlobe';
 
 export default function TripDetailsModal({ tripId, onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // The street map shows the whole route on real roads; the globe shows where it is on the planet.
+  const [view, setView] = useState('map');
 
   const load = useCallback(async () => {
     try {
@@ -45,7 +48,7 @@ export default function TripDetailsModal({ tripId, onClose, onChanged }) {
   );
 
   return (
-    <Modal title={t ? `Trip ${t.id.slice(0, 8)}` : 'Trip'} onClose={onClose} wide>
+    <Modal title={t ? `Trip ${t.id.slice(0, 8)}` : 'Trip'} onClose={onClose} xl>
       <ErrorBanner message={error} />
       {!t && !error && <Spinner />}
       {t && (
@@ -65,7 +68,23 @@ export default function TripDetailsModal({ tripId, onClose, onChanged }) {
             {t.end && ` · End ${coords(t.end.latitude, t.end.longitude)}`}
           </div>
 
-          <RouteReplayMap route={data.route} height="360px" />
+          <div className="flex items-center gap-2">
+            {[['map', 'Road map'], ['globe', 'Globe']].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setView(id)}
+                aria-pressed={view === id}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                  view === id ? 'bg-brand-green text-[#052E16] border-brand-green' : 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-300 dark:hover:bg-white/5'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <span className="text-[11px] text-gray-500 ml-auto">The whole route is shown from start to end.</span>
+          </div>
+          {view === 'map' ? <RouteReplayMap route={data.route} height="520px" /> : <RouteGlobe route={data.route} height="520px" />}
 
           {t.status === 'COMPLETED' && (
             <button onClick={recalc} disabled={busy} className="text-xs font-semibold text-brand-green hover:underline flex items-center gap-1.5 disabled:opacity-60">

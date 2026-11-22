@@ -87,7 +87,7 @@ export function useDialogBehavior(onClose) {
   }, [onClose]);
 }
 
-export function Modal({ title, onClose, children, wide = false }) {
+export function Modal({ title, onClose, children, wide = false, xl = false }) {
   const { isDark } = useTheme();
   useDialogBehavior(onClose);
   return createPortal(
@@ -98,7 +98,7 @@ export function Modal({ title, onClose, children, wide = false }) {
           aria-modal="true"
           aria-label={title}
           onClick={(e) => e.stopPropagation()}
-          className={`relative w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-3xl border shadow-2xl p-5 sm:p-6 ${
+          className={`relative w-full ${xl ? 'max-w-5xl' : wide ? 'max-w-3xl' : 'max-w-lg'} rounded-3xl border shadow-2xl p-5 sm:p-6 ${
             isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827]'
           }`}
         >

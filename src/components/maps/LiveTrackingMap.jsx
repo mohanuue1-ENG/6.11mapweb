@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
+import { MAP_STYLES, tileLayerFor } from './mapStyles';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
 import { useGps } from '../../context/GpsContext';
@@ -42,7 +43,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
   const markersRef = useRef({});
   const tileLayerRef = useRef(null);
 
-  const [mapType, setMapType] = useState(isDark ? 'dark' : 'street'); // 'dark', 'street', 'satellite'
+  const [mapType, setMapType] = useState(isDark ? 'dark' : 'street'); // one of MAP_STYLES
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'moving', 'stopped', 'offline'
   const [activeTruckId, setActiveTruckId] = useState(null);
@@ -101,7 +102,8 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
 
   // Update tiles when theme changes if user hasn't explicitly set satellite
   useEffect(() => {
-    if (mapType !== 'satellite') {
+    // Day or night follows the theme until the user picks another look.
+    if (mapType === 'street' || mapType === 'dark') {
       switchTiles(isDark ? 'dark' : 'street');
     }
   }, [isDark]);
@@ -115,24 +117,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
       mapInstanceRef.current.removeLayer(tileLayerRef.current);
     }
 
-    let newLayer;
-    if (type === 'satellite') {
-      newLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '&copy; Esri World Imagery',
-        maxZoom: 19,
-      });
-    } else if (type === 'street') {
-      newLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19,
-      });
-    } else {
-      newLayer = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '&copy; Esri &mdash; World Dark Gray Base',
-        maxZoom: 16,
-      });
-    }
-
+    const newLayer = tileLayerFor(type);
     newLayer.addTo(mapInstanceRef.current);
     tileLayerRef.current = newLayer;
   };
@@ -373,42 +358,22 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
             <span className={`w-1.5 h-1.5 rounded-full bg-current ${liveStatus === 'live' ? 'animate-pulse' : ''}`} />
             {liveStatus === 'live' ? 'Live' : liveStatus === 'offline' ? 'Not connected' : 'Reconnecting'}
           </span>
-          <button
-            onClick={() => switchTiles('street')}
-            className={`px-2.5 py-1 text-xs rounded-xl font-bold transition-colors ${
-              mapType === 'street'
-                ? 'bg-[#22C55E] text-black'
-                : isDark
-                ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            Day Map
-          </button>
-          <button
-            onClick={() => switchTiles('satellite')}
-            className={`px-2.5 py-1 text-xs rounded-xl font-bold transition-colors ${
-              mapType === 'satellite'
-                ? 'bg-[#22C55E] text-black'
-                : isDark
-                ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            Satellite
-          </button>
-          <button
-            onClick={() => switchTiles('dark')}
-            className={`px-2.5 py-1 text-xs rounded-xl font-bold transition-colors ${
-              mapType === 'dark'
-                ? 'bg-[#22C55E] text-black'
-                : isDark
-                ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            Night Map
-          </button>
+          {MAP_STYLES.map((st) => (
+            <button
+              key={st.id}
+              onClick={() => switchTiles(st.id)}
+              aria-pressed={mapType === st.id}
+              className={`px-2.5 py-1 text-xs rounded-xl font-bold transition-colors ${
+                mapType === st.id
+                  ? 'bg-[#22C55E] text-black'
+                  : isDark
+                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              {st.label}
+            </button>
+          ))}
 
           <button
             onClick={fitAllTrucks}
