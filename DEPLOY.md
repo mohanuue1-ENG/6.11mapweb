@@ -1,14 +1,14 @@
-# 6.11 Drive GPS — deployment, operations and release checklist
+# 6.11 TruckOS — deployment, operations and release checklist
 
 Three parts, kept in separate folders:
 
 | Part | Folder | Runs on |
 |---|---|---|
-| Website (React + Vite) | `gps website/` | Vercel (proposed) |
-| API + Socket.IO (Node + Express) | `gps website/server/` | Render or a VPS with persistent WebSockets (proposed) |
+| Website (React + Vite) | `gps website/` | Our VPS (nginx), see `deploy/README.md` |
+| API + Socket.IO (Node + Express) | `gps website/server/` | Our VPS (systemd), deployed by GitHub Actions |
 | Driver app (React Native / Expo) | `drive-gps-mobile/` | App Store / Google Play builds |
 
-Hosting, the PostgreSQL provider and the map provider are **proposals** in the PRD, not confirmed choices.
+Hosting is our own VPS behind Cloudflare (website, API and PostgreSQL on one server); the setup and deploy steps are in `deploy/README.md`.
 
 ## 1. Environments
 Use three, with separate databases and separate secrets: development, staging, production.
@@ -28,7 +28,7 @@ Migrations are plain SQL in `server/migrations/`, applied in file order, each in
 cd server
 npm run migrate        # applies what has not run yet; safe to repeat
 ```
-Run it as a controlled step before starting a new API version (`render.yaml` does this as `preDeployCommand`). Take a backup first for any release that changes the schema. Create the first accounts with `npm run seed` using the `SEED_*` variables (passwords of 12+ characters), then remove those variables.
+Run it as a controlled step before starting a new API version (the systemd service runs it before starting). Take a backup first for any release that changes the schema. Create the first accounts with `npm run seed` using the `SEED_*` variables (passwords of 12+ characters), then remove those variables.
 
 ## 4. WebSockets and scaling
 Socket.IO needs a host that keeps connections open (no serverless functions, no sleeping free tier). Test the host's idle and connection timeouts (the website reconnects by itself and re-reads a snapshot after every reconnect).
