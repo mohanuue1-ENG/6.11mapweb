@@ -126,17 +126,19 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Sends the release and the server's settings (the secret APP_ENV, the
-      # contents of server/.env) together, in one bundle.
-      - name: Send the release to the server
+      # Simple copy test: unpack the release straight into a folder on the server.
+      # (Later this is replaced by the full deploy script: stop, switch, restart.)
+      - name: Copy the release to the server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          APP_ENV: ${{ secrets.APP_ENV }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER || 'deploy' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/srv/app/test-release' }}
         run: |
-          printf '%s\n' "$APP_ENV" | tr -d '\r' > app.env
-          tar -cf - release.tar.gz app.env | ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "deploy@$DEPLOY_HOST" "$GITHUB_SHA $(cat release.sha256)"
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes             "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH' && tar -xzf - -C '$DEPLOY_PATH'" < release.tar.gz
+          echo "$GITHUB_SHA" > commit.txt
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes             "$DEPLOY_USER@$DEPLOY_HOST" "cat > '$DEPLOY_PATH/COMMIT.txt'" < commit.txt
+          echo "Copied the release to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
 
-      - name: Delete the SSH key and the settings
+      - name: Delete the SSH key
         if: always()
-        run: rm -f ~/.ssh/deploy_key app.env
+        run: rm -f ~/.ssh/deploy_key commit.txt
