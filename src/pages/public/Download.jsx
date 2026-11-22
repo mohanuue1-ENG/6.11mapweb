@@ -33,7 +33,7 @@ function useFileAvailable(url) {
 const STEPS = [
   'Tap Download on your phone and open the file when it finishes.',
   'If your phone asks, allow installs from this browser. This is normal for apps that do not come from the Play Store.',
-  'Open 6.11 BIS and sign in with the email and password your company gave you.',
+  'Open 6.11 TruckOS and sign in with the email and password your company gave you.',
   'When asked about location, choose “Allow all the time”, so your trips are recorded with the screen off.',
 ];
 
@@ -62,7 +62,7 @@ export default function Download() {
           Get the driver app<span className="text-brand-green">.</span>
         </h1>
         <p className="text-lg text-mute">
-          Drivers share their location and run their trips from the 6.11 BIS app on the phone they already carry. Your office sees it all on the dashboard.
+          Drivers share their location and run their trips from the 6.11 TruckOS app on the phone they already carry. Your office sees it all on the dashboard.
         </p>
       </div>
 

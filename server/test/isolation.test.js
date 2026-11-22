@@ -135,21 +135,13 @@ test('the database allows only one active trip per driver and validates coordina
   await insertTrip();
 });
 
-test('seed creates NEB Trucking with a $0 subscription and is repeatable', async () => {
-  const env = {};
-  await seed(ctx.db, ctx.config, env);
-  await seed(ctx.db, ctx.config, env);
-  const { rows } = await ctx.db.query(
-    `SELECT c.name, c.is_internal, s.price_cents, s.status
-       FROM companies c JOIN subscriptions s ON s.company_id = c.id
-      WHERE c.name = 'NEB Trucking'`,
-  );
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].is_internal, true);
-  assert.equal(rows[0].price_cents, 0);
-  // No admin accounts are created without credentials in the environment.
-  const users = await ctx.db.query(`SELECT 1 FROM users u JOIN companies c ON c.id = u.company_id WHERE c.name = 'NEB Trucking'`);
-  assert.equal(users.rows.length, 0);
+test('seed creates the internal plan only, and is repeatable; no company is created', async () => {
+  const before = (await ctx.db.query(`SELECT count(*)::int AS n FROM companies`)).rows[0].n;
+  await seed(ctx.db, ctx.config, {});
+  await seed(ctx.db, ctx.config, {});
+  assert.equal((await ctx.db.query(`SELECT count(*)::int AS n FROM plans WHERE name = 'NEB Internal Fleet'`)).rows[0].n, 1);
+  assert.equal((await ctx.db.query(`SELECT count(*)::int AS n FROM companies`)).rows[0].n, before);
+  assert.equal((await ctx.db.query(`SELECT count(*)::int AS n FROM companies WHERE name = 'NEB Trucking'`)).rows[0].n, 0);
 });
 
 // Keep this last: it suspends company B.

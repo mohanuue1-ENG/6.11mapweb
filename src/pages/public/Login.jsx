@@ -8,13 +8,24 @@ import AuthShell from '../../components/layout/AuthShell';
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, verifyLogin } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Set when the password was right and a code was emailed: { challengeId, hint, devCode }.
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState('');
+  const [remember, setRemember] = useState(true);
+
+  const finish = (user) => {
+    const home = homePathFor(user.role);
+    // Return to the page that sent the user here, if it belongs to their role.
+    const from = location.state?.from;
+    navigate(from && from.startsWith(`/${home.split('/')[1]}`) ? from : home, { replace: true });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,15 +33,38 @@ export default function Login() {
     setErrorMsg('');
     setSubmitting(true);
     try {
-      const user = await login(email, password);
-      const home = homePathFor(user.role);
-      // Return to the page that sent the user here, if it belongs to their role.
-      const from = location.state?.from;
-      navigate(from && from.startsWith(`/${home.split('/')[1]}`) ? from : home, { replace: true });
+      const res = await login(email, password);
+      if (res.verification) {
+        setChallenge(res.verification);
+        setCode('');
+        setSubmitting(false);
+        return;
+      }
+      finish(res);
     } catch (err) {
       setErrorMsg(errorMessage(err, 'Sign in failed. Please try again.'));
       setSubmitting(false);
     }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    setErrorMsg('');
+    setSubmitting(true);
+    try {
+      finish(await verifyLogin(email, challenge.challengeId, code.trim(), remember));
+    } catch (err) {
+      setErrorMsg(errorMessage(err, 'That code did not work. Check it and try again.'));
+      setSubmitting(false);
+    }
+  };
+
+  const backToPassword = () => {
+    setChallenge(null);
+    setCode('');
+    setPassword('');
+    setErrorMsg('');
   };
 
   const input =
@@ -38,11 +72,11 @@ export default function Login() {
 
   return (
     <AuthShell
-      title="Sign in"
-      subtitle="Welcome back. Enter your details to open your dashboard."
+      title={challenge ? 'Check your email' : 'Sign in'}
+      subtitle={challenge ? `We sent a 6-digit code to ${challenge.hint}. Enter it to finish signing in.` : 'Welcome back. Enter your details to open your dashboard.'}
       footer={
         <div className="space-y-3 pt-6 border-t border-line">
-          <p>New to 6.11 BIS?</p>
+          <p>New to 6.11 TruckOS?</p>
           <Link
             to="/create-account"
             className="flex h-12 w-full items-center justify-center rounded-xl border-2 border-brand-green text-accent font-semibold hover:bg-brand-green/10 transition-colors"
@@ -59,6 +93,50 @@ export default function Login() {
         </div>
       )}
 
+      {challenge && (
+        <form onSubmit={handleVerify} className="space-y-5">
+          {challenge.devCode && (
+            <p className="p-3 rounded-xl bg-status-amber/10 border border-status-amber/30 text-sm">Test mode: your code is <strong>{challenge.devCode}</strong></p>
+          )}
+          <div>
+            <label htmlFor="login-code" className="block text-sm font-medium mb-1.5">6-digit code</label>
+            <input
+              id="login-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              required
+              autoFocus
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              className="w-full h-12 rounded-xl border border-line bg-surface text-ink placeholder:text-mute px-4 text-center text-xl tracking-[0.4em] focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-mute">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="rounded border-line" />
+            Remember this browser for 30 days
+          </label>
+          <button
+            type="submit"
+            disabled={submitting || code.length !== 6}
+            className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Checking…
+              </>
+            ) : (
+              'Confirm and sign in'
+            )}
+          </button>
+          <button type="button" onClick={backToPassword} className="w-full text-sm font-semibold text-accent hover:underline">
+            Back
+          </button>
+        </form>
+      )}
+
+      {!challenge && (
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="login-email" className="block text-sm font-medium mb-1.5">Email</label>
@@ -110,6 +188,7 @@ export default function Login() {
           )}
         </button>
       </form>
+      )}
     </AuthShell>
   );
 }

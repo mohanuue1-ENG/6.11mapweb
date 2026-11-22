@@ -28,7 +28,7 @@ export function loadConfig(env = process.env) {
     throw new Error('COOKIE_SAMESITE must be lax, strict or none');
   }
 
-  const mailConfigured = !!(env.SMTP_HOST || (env.MAILJET_API_KEY && env.MAILJET_SECRET_KEY));
+  const mailConfigured = !!env.SMTP_HOST;
 
   return {
     nodeEnv,
@@ -69,9 +69,6 @@ export function loadConfig(env = process.env) {
     smtpPort: int(env.SMTP_PORT, 587),
     smtpUser: env.SMTP_USER || '',
     smtpPass: env.SMTP_PASS || '',
-    // Mailjet web API (used before SMTP when both keys are set). MAIL_FROM must be a sender verified in Mailjet.
-    mailjetApiKey: env.MAILJET_API_KEY || '',
-    mailjetSecretKey: env.MAILJET_SECRET_KEY || '',
     mailFrom: env.MAIL_FROM || '6.11 Drive GPS <no-reply@localhost>',
     adminNotifyEmail: env.ADMIN_NOTIFY_EMAIL || '',
     // Public address of the website, used in links inside emails.
@@ -80,6 +77,9 @@ export function loadConfig(env = process.env) {
     // Drivers prove their email with a six-digit code when they create an account and when they sign in.
     // The codes are on whenever email (SMTP) is set up; DRIVER_LOGIN_CODES=false turns the sign-in code off.
     driverCodeLogin: env.DRIVER_LOGIN_CODES ? env.DRIVER_LOGIN_CODES === 'true' : mailConfigured,
+    // Administrators (Super Admin and Company Admins) also confirm each website sign-in with an emailed code.
+    // On whenever email is set up; ADMIN_LOGIN_CODES=false turns it off.
+    adminCodeLogin: env.ADMIN_LOGIN_CODES ? env.ADMIN_LOGIN_CODES === 'true' : mailConfigured,
     // For trying the flow before email is set up: the API hands the code back instead of emailing it.
     // Anyone who knows a driver's email could then create that driver's account, so never leave it on for real use.
     codeTestMode: env.CODE_TEST_MODE === 'true',

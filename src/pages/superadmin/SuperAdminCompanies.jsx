@@ -79,7 +79,7 @@ const generatePassword = () => Array.from(crypto.getRandomValues(new Uint32Array
 // Creates a company and its first administrator. The password is shown once so it can be handed over.
 function CreateCompanyModal({ plans, onClose, onCreated }) {
   const field = useFieldClass();
-  const [f, setF] = useState({ companyName: '', adminName: '', email: '', password: generatePassword(), phone: '', dotNumber: '', mcNumber: '', address: '', planId: '' });
+  const [f, setF] = useState({ companyName: '', adminName: '', email: '', password: generatePassword(), phone: '', dotNumber: '', mcNumber: '', address: '', planId: '', isInternal: false });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(null);
@@ -95,9 +95,10 @@ function CreateCompanyModal({ plans, onClose, onCreated }) {
     try {
       const body = { companyName: f.companyName, adminName: f.adminName, email: f.email, password: f.password };
       for (const k of ['phone', 'dotNumber', 'mcNumber', 'address']) if (f[k]) body[k] = f[k];
+      if (f.isInternal) body.isInternal = true;
       const created = await api('/admin/companies', { method: 'POST', body });
       let planError = '';
-      if (f.planId) {
+      if (f.planId && !f.isInternal) {
         try {
           await api(`/admin/companies/${created.companyId}/subscription`, { method: 'PUT', body: { planId: f.planId } });
         } catch (err) {
@@ -154,8 +155,12 @@ Password: ${done.password}`;
             <button type='button' onClick={() => setF({ ...f, password: generatePassword() })} className='px-3 text-xs font-semibold rounded-xl border border-line hover:border-brand-green whitespace-nowrap'>Generate</button>
           </div>
         </Field>
+        <label className='flex items-start gap-2 text-sm'>
+          <input type='checkbox' className='mt-1' checked={f.isInternal} onChange={(e) => setF({ ...f, isInternal: e.target.checked, planId: '' })} />
+          <span>Internal company (for example NEB Trucking): no fee, uses the internal $0 plan automatically</span>
+        </label>
         <Field label='Plan (optional, can be set later)'>
-          <select className={field} value={f.planId} onChange={set('planId')}>
+          <select className={field} value={f.planId} onChange={set('planId')} disabled={f.isInternal}>
             <option value=''>No plan yet</option>
             {usable.map((p) => <option key={p.id} value={p.id}>{p.name} — {money(p.priceCents)}/mo</option>)}
           </select>

@@ -47,6 +47,8 @@ const createCompanySchema = z
     dotNumber: nullableText(40),
     mcNumber: nullableText(40),
     address: nullableText(500),
+    // The platform's own company (for example NEB Trucking): no fee, on the internal $0 plan.
+    isInternal: z.boolean().optional(),
   })
   .strict();
 
@@ -123,11 +125,19 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
         const taken = await q.query('SELECT 1 FROM users WHERE lower(email) = $1', [input.email]);
         if (taken.rows.length) throw conflict('An account with this email already exists');
         const company = await q.query(
-          `INSERT INTO companies (name, contact_email, contact_phone, address, dot_number, mc_number)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [input.companyName, input.email, input.phone, input.address, input.dotNumber, input.mcNumber],
+          `INSERT INTO companies (name, contact_email, contact_phone, address, dot_number, mc_number, is_internal)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [input.companyName, input.email, input.phone, input.address, input.dotNumber, input.mcNumber, !!input.isInternal],
         );
         const companyId = company.rows[0].id;
+        if (input.isInternal) {
+          const plan = (await q.query(`SELECT id FROM plans WHERE is_internal_only AND is_active ORDER BY created_at LIMIT 1`)).rows[0];
+          if (!plan) throw conflict('There is no internal plan yet. Create one in Plans first.');
+          await q.query(
+            `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit) VALUES ($1, $2, 'active', 0, NULL)`,
+            [companyId, plan.id],
+          );
+        }
         const user = await q.query(
           `INSERT INTO users (company_id, role, name, email, password_hash)
            VALUES ($1, 'COMPANY_ADMIN', $2, $3, $4) RETURNING id`,

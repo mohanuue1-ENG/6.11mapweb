@@ -1,9 +1,10 @@
 // Seeds the records the platform needs before anyone can sign in (PRD section 9):
-// the internal $0 plan, NEB Trucking with its subscription, and — when their
-// credentials are provided through environment variables — the Super Admin
-// and the NEB Company Admin. Safe to run repeatedly.
+// the internal $0 plan and — when its credentials are provided through environment
+// variables — the Super Admin. Companies (NEB Trucking included) are added by the
+// Super Admin in the website. Safe to run repeatedly.
 import bcrypt from 'bcryptjs';
 import { pathToFileURL } from 'node:url';
+import { revokeAllForUser } from '../services/tokens.js';
 
 export async function seed(db, config, env = process.env, log = () => {}) {
   await db.tx(async (q) => {
@@ -19,34 +20,23 @@ export async function seed(db, config, env = process.env, log = () => {}) {
       log('created plan "NEB Internal Fleet" ($0)');
     }
 
-    let neb = (await q.query(`SELECT id FROM companies WHERE is_internal AND name = 'NEB Trucking'`)).rows[0];
-    if (!neb) {
-      neb = (
-        await q.query(`INSERT INTO companies (name, is_internal, status) VALUES ('NEB Trucking', true, 'active') RETURNING id`)
-      ).rows[0];
-      log('created company "NEB Trucking"');
-    }
-
-    const sub = await q.query(`SELECT 1 FROM subscriptions WHERE company_id = $1 AND status = 'active'`, [neb.id]);
-    if (!sub.rows.length) {
-      await q.query(
-        `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit)
-         VALUES ($1, $2, 'active', 0, NULL)`,
-        [neb.id, plan.id],
-      );
-      log('created $0 subscription for NEB Trucking');
-    }
-
-    const ensureUser = async ({ label, email, password, role, companyId, name }) => {
+    const ensureUser = async ({ label, email, password, role, companyId, name, followEnvPassword = false }) => {
       if (!email || !password) {
         log(`skipped ${label}: set its email and password variables in .env to create it`);
         return;
       }
       if (password.length < 12) throw new Error(`${label} password must be at least 12 characters`);
       const normalized = email.trim().toLowerCase();
-      const existing = await q.query('SELECT 1 FROM users WHERE lower(email) = $1', [normalized]);
+      const existing = await q.query('SELECT id, password_hash FROM users WHERE lower(email) = $1', [normalized]);
       if (existing.rows.length) {
-        log(`${label} already exists`);
+        // The Super Admin password follows the server settings: a forgotten password is set again there.
+        if (followEnvPassword && !(await bcrypt.compare(password, existing.rows[0].password_hash))) {
+          await q.query('UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1', [existing.rows[0].id, await bcrypt.hash(password, config.bcryptRounds)]);
+          await revokeAllForUser(q, existing.rows[0].id);
+          log(`${label} password set from the server settings`);
+        } else {
+          log(`${label} already exists`);
+        }
         return;
       }
       await q.query(
@@ -63,14 +53,7 @@ export async function seed(db, config, env = process.env, log = () => {}) {
       role: 'SUPER_ADMIN',
       companyId: null,
       name: '6.11 Super Admin',
-    });
-    await ensureUser({
-      label: 'NEB Company Admin',
-      email: env.SEED_NEB_ADMIN_EMAIL,
-      password: env.SEED_NEB_ADMIN_PASSWORD,
-      role: 'COMPANY_ADMIN',
-      companyId: neb.id,
-      name: 'NEB Admin',
+      followEnvPassword: true,
     });
   });
 }

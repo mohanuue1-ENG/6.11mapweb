@@ -130,7 +130,7 @@ export function authRoutes({ db, config, authenticate, mailer }) {
 
   // Emails a code. Where email is not set up, production says so, and development / test mode skips the email
   // and lets the API hand the code back.
-  async function sendCode(to, code) {
+  async function sendCode(to, code, brand = 'TRUKOVA') {
     if (!mailer.configured) {
       if (config.isProduction && !config.codeTestMode) {
         throw new HttpError(503, 'EMAIL_UNAVAILABLE', 'Email is not set up yet. Please contact your company.');
@@ -139,8 +139,8 @@ export function authRoutes({ db, config, authenticate, mailer }) {
     }
     const mail = await mailer.send({
       to,
-      subject: 'Your TRUKOVA code',
-      text: [`Your TRUKOVA code is ${code}`, '', `It works once and expires in ${config.codeTtlMinutes} minutes.`, 'If you did not ask for it, ignore this email.'].join('\n'),
+      subject: `Your ${brand} code`,
+      text: [`Your ${brand} code is ${code}`, '', `It works once and expires in ${config.codeTtlMinutes} minutes.`, 'If you did not ask for it, ignore this email.'].join('\n'),
     });
     if (!mail.sent) {
       throw new HttpError(502, 'EMAIL_FAILED', 'We could not send the email right now. Try again in a moment, or contact your company.');
@@ -402,15 +402,18 @@ export function authRoutes({ db, config, authenticate, mailer }) {
       }
 
       // A driver is also checked with a code emailed to their account address, unless this phone was verified
-      // and remembered less than 30 days ago.
-      if (user.role === 'DRIVER' && config.driverCodeLogin) {
+      // and remembered less than 30 days ago. Administrators (Super Admin, Company Admin) are checked the same way
+      // on the website, unless this browser was verified and remembered.
+      const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN';
+      const needsCode = (user.role === 'DRIVER' && config.driverCodeLogin) || (isAdmin && config.adminCodeLogin);
+      if (needsCode) {
         const trusted = input.deviceToken ? await checkTrustedDevice(db, user.id, input.deviceToken) : false;
         if (!trusted) {
-          const driver = (await db.query('SELECT id FROM drivers WHERE user_id = $1', [user.id])).rows[0];
+          const driver = user.role === 'DRIVER' ? (await db.query('SELECT id FROM drivers WHERE user_id = $1', [user.id])).rows[0] : null;
           const target = String(user.email || '').trim().toLowerCase();
           if (!target) throw new HttpError(403, 'NO_EMAIL', 'There is no email address on your account. Ask your company.');
           const { id, code } = await db.tx((q) => createCode(q, config, { purpose: 'login', target, driverId: driver?.id ?? null, userId: user.id }));
-          await sendCode(target, code);
+          await sendCode(target, code, isAdmin ? '6.11 TruckOS' : 'TRUKOVA');
           await audit(db, { companyId: user.company_id, actorUserId: user.id, action: 'LOGIN_CODE_SENT', ip: req.ip });
           return res.json({ verificationRequired: true, challengeId: id, hint: maskEmail(target), devCode: devCodeFor(code) });
         }
@@ -465,8 +468,10 @@ export function authRoutes({ db, config, authenticate, mailer }) {
     '/forgot-password',
     asyncHandler(async (req, res) => {
       const { email: address } = parse(z.object({ email }).strict(), req.body);
-      const u = (await db.query('SELECT id, name, status, company_id FROM users WHERE lower(email) = $1', [address])).rows[0];
-      if (u && u.status === 'active') {
+      const u = (await db.query('SELECT id, name, status, company_id, role FROM users WHERE lower(email) = $1', [address])).rows[0];
+      // The Super Admin has no emailed reset: a forgotten password is set again in the server settings
+      // (SEED_SUPER_ADMIN_PASSWORD) by whoever runs the server. The answer stays the same.
+      if (u && u.status === 'active' && u.role !== 'SUPER_ADMIN') {
         const raw = crypto.randomBytes(32).toString('base64url');
         await db.tx(async (q) => {
           // Only the newest link works.
@@ -480,7 +485,7 @@ export function authRoutes({ db, config, authenticate, mailer }) {
         const url = `${config.appUrl}/set-password?token=${raw}&type=reset`;
         const mail = await mailer.send({
           to: address,
-          subject: 'Reset your 6.11 Drive GPS password',
+          subject: 'Reset your 6.11 TruckOS password',
           text: [
             `Hello ${u.name},`,
             '',

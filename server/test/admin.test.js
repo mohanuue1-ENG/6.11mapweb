@@ -125,6 +125,9 @@ test('the internal plan is only for the internal company, which seeds at $0', as
   const refused = await as(root).put(`/admin/companies/${a.companyId}/subscription`, { planId: internal.id });
   assert.equal(refused.status, 409);
 
+  // The Super Admin adds the internal company; it gets the $0 plan by itself.
+  const made = await as(root).post('/admin/companies', { companyName: 'NEB Trucking', adminName: 'NEB Admin', email: `neb-${crypto.randomUUID()}@example.test`, password: 'Neb-Password-123', isInternal: true });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
   const list = (await as(root).get('/admin/companies')).body.companies;
   const neb = list.find((c) => c.name === 'NEB Trucking');
   assert.equal(neb.isInternal, true);

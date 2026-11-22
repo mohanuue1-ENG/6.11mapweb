@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 
 export default function Brand({ to = '/', light = false }) {
   return (
-    <Link to={to} className="inline-flex items-center gap-2.5" aria-label="6.11 BIS home">
-      <span className="w-9 h-9 rounded-xl overflow-hidden border border-brand-green/40 bg-[#080B10] shrink-0">
-        <img src="/assets/logo.jpg" alt="" className="w-full h-full object-cover" />
+    <Link to={to} className="inline-flex items-center gap-2.5" aria-label="6.11 TruckOS home">
+      <span className="h-10 shrink-0 flex items-center">
+        <img src="/assets/logo.png" alt="6.11" className="h-8 w-auto" />
       </span>
       <span className={`text-base font-extrabold tracking-tight ${light ? 'text-white' : 'text-ink'}`}>
-        <span className={light ? 'text-brand-green' : 'text-accent'}>6.11</span> BIS
+        TruckOS
       </span>
     </Link>
   );

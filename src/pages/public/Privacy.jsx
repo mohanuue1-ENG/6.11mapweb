@@ -8,8 +8,8 @@ const SECTIONS = [
   {
     title: 'Who we are',
     body: [
-      '6.11 BIS is a fleet tracking service. Trucking companies use the website to see where their trucks are and what they have done. Their drivers use the 6.11 BIS mobile app, which shares the phone’s location while the driver chooses to share it.',
-      'This policy explains what information the website and the app handle, why, and what choices you have. It applies to the 6.11 BIS website and to the 6.11 BIS driver app for Android and iOS.',
+      '6.11 TruckOS is a fleet tracking service. Trucking companies use the website to see where their trucks are and what they have done. Their drivers use the 6.11 TruckOS mobile app, which shares the phone’s location while the driver chooses to share it.',
+      'This policy explains what information the website and the app handle, why, and what choices you have. It applies to the 6.11 TruckOS website and to the 6.11 TruckOS driver app for Android and iOS.',
     ],
   },
   {
@@ -42,8 +42,8 @@ const SECTIONS = [
   {
     title: 'Service providers we use',
     list: [
-      'Hosting and database: Render, where the service and its data run.',
-      'Email delivery: Mailjet, which sends the verification codes and account emails. It receives the recipient’s email address and the message.',
+      'Hosting and database: our own server, where the service and its data run.',
+      'Email delivery: Google Gmail, which sends the verification codes and account emails. It receives the recipient’s email address and the message.',
       'Place names: OpenStreetMap Nominatim, which turns coordinates into a street or city name. It receives the coordinates being looked up, not the driver’s name or account.',
       'Maps: map tiles are loaded from OpenStreetMap-based servers, which receive the area being viewed.',
     ],
@@ -72,7 +72,7 @@ const SECTIONS = [
   },
   {
     title: 'Children',
-    body: ['6.11 BIS is for working adults. It is not directed to children under 16 and we do not knowingly collect their information.'],
+    body: ['6.11 TruckOS is for working adults. It is not directed to children under 16 and we do not knowingly collect their information.'],
   },
   {
     title: 'Changes to this policy',

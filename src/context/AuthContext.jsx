@@ -78,9 +78,40 @@ export function AuthProvider({ children }) {
     };
   }, [applySession, clearSession]);
 
+  // A browser that confirmed a code and was remembered skips the code for 30 days.
+  const deviceKey = (email) => `611_device:${String(email).trim().toLowerCase()}`;
+  const readDevice = (email) => {
+    try {
+      return localStorage.getItem(deviceKey(email)) || undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
+  // Returns the signed-in user, or { verification } when an emailed code is needed first.
   const login = useCallback(
     async (email, password) => {
-      const data = await api('/auth/login', { method: 'POST', auth: false, body: { email, password } });
+      const deviceToken = readDevice(email);
+      const data = await api('/auth/login', { method: 'POST', auth: false, body: { email, password, ...(deviceToken ? { deviceToken } : {}) } });
+      if (data.verificationRequired) {
+        return { verification: { challengeId: data.challengeId, hint: data.hint, devCode: data.devCode } };
+      }
+      return applySession(data);
+    },
+    [applySession],
+  );
+
+  // The second step: the code from the email. "remember" keeps this browser verified for 30 days.
+  const verifyLogin = useCallback(
+    async (email, challengeId, code, remember) => {
+      const data = await api('/auth/login/verify', { method: 'POST', auth: false, body: { challengeId, code, remember: !!remember } });
+      if (data.deviceToken) {
+        try {
+          localStorage.setItem(deviceKey(email), data.deviceToken);
+        } catch {
+          /* storage unavailable: the code is asked again next time */
+        }
+      }
       return applySession(data);
     },
     [applySession],
@@ -128,6 +159,7 @@ export function AuthProvider({ children }) {
         updateCompany,
         loading,
         login,
+        verifyLogin,
         register,
         logout,
         isSuperAdmin: user?.role === 'SUPER_ADMIN',

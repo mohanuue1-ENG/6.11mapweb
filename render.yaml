@@ -50,8 +50,8 @@ services:
         sync: false # e.g. 611-drive-gps/1.0 (contact: your-email@example.com)
       # Optional: email (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, ADMIN_NOTIFY_EMAIL)
       # and payments (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET). Add them in the dashboard when you have them.
-      # Driver sign-up and sign-in codes are emailed. On Render's free plan SMTP is blocked, so use a web API:
-      # Mailjet (MAILJET_API_KEY and MAILJET_SECRET_KEY), plus MAIL_FROM ("TRUKOVA <your-verified-sender>"), in the dashboard. (SMTP_* works on paid plans.) Until then, to try the app only, set CODE_TEST_MODE=true: the code is shown in the app instead
+      # Driver sign-up and sign-in codes are emailed through SMTP (for example Gmail with an app password).
+      # Until then, to try the app only, set CODE_TEST_MODE=true: the code is shown in the app instead
       # of being emailed. Remove it before real use.
 
   # ---- Website ---------------------------------------------------------------------------------

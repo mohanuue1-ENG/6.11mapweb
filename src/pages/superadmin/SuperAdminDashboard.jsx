@@ -26,7 +26,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="space-y-6 pb-12 font-sans">
-      <PageHeader icon={ShieldCheck} title="Platform Overview" subtitle="All companies, fleets and activity across 6.11 BIS" />
+      <PageHeader icon={ShieldCheck} title="Platform Overview" subtitle="All companies, fleets and activity across 6.11 TruckOS" />
       <ErrorBanner message={error} />
       {!overview && !error && <Spinner />}
       {overview && (

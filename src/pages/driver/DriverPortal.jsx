@@ -23,7 +23,7 @@ export default function DriverPortal() {
           </span>
           <h1 className="text-2xl font-extrabold tracking-tight">Use the driver app</h1>
           <p className="text-sm text-mute leading-relaxed">
-            {user?.name ? `${user.name}, trips` : 'Trips'} and location sharing run in the 6.11 BIS app on your phone. Sign in there with this same email and password.
+            {user?.name ? `${user.name}, trips` : 'Trips'} and location sharing run in the 6.11 TruckOS app on your phone. Sign in there with this same email and password.
           </p>
           <button
             onClick={async () => {
