@@ -1,6 +1,6 @@
 import ThemeToggle from '../common/ThemeToggle';
 import { useAutoClose } from '../../hooks/useAutoClose';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import ChangePasswordModal from '../common/ChangePasswordModal';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -60,6 +60,15 @@ export default function DashboardLayout({ children }) {
   // also closes when you tap outside it.
   useAutoClose(sidebarOpen, () => setSidebarOpen(false));
   useAutoClose(userMenuOpen, () => setUserMenuOpen(false), { insideRefs: [userMenuRef] });
+  // Desktop: the menu is icons only and opens when the pointer is on it. It then pushes the page aside,
+  // so it never covers what is on the page. A short wait stops it flickering as the pointer passes by.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuTimer = useRef(null);
+  const holdMenu = (open, wait) => {
+    clearTimeout(menuTimer.current);
+    menuTimer.current = setTimeout(() => setMenuOpen(open), wait);
+  };
+  useEffect(() => () => clearTimeout(menuTimer.current), []);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -104,19 +113,25 @@ export default function DashboardLayout({ children }) {
 
       {/* SIDEBAR (PRD Section 9.3 & 9.9) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[9999] w-60 max-w-[80vw] border-r flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        onMouseEnter={() => holdMenu(true, 120)}
+        onMouseLeave={() => holdMenu(false, 150)}
+        onFocus={() => holdMenu(true, 0)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) holdMenu(false, 0);
+        }}
+        className={`group fixed inset-y-0 left-0 z-[9999] w-60 max-w-[80vw] border-r flex flex-col overflow-hidden transition-[transform,width] duration-300 ease-in-out lg:translate-x-0 ${menuOpen ? 'lg:w-60' : 'lg:w-16'} ${
           isDark
             ? 'bg-[#0B0F14] border-white/10 text-white shadow-2xl'
             : 'bg-[#FFFFFF] border-[#E5E7EB] text-[#111827] shadow-2xl'
         } ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Brand Header */}
-        <div className={`h-14 flex items-center justify-between px-4 border-b ${isDark ? 'border-white/10' : 'border-[#E5E7EB]'}`}>
-          <Link to="/" className="flex items-center gap-2.5">
+        <div className={`h-14 flex items-center justify-between px-4 border-b shrink-0 ${isDark ? 'border-white/10' : 'border-[#E5E7EB]'}`}>
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
             <div className="h-9 flex items-center">
-              <img src="/assets/logo.png" alt="6.11" className="h-7 w-auto" />
+              <img src="/assets/logo.png" alt="6.11" className={`h-7 w-auto object-contain object-left ${menuOpen ? 'lg:max-w-none' : 'lg:max-w-[36px]'}`} />
             </div>
-            <div className="flex flex-col">
+            <div className={`flex flex-col whitespace-nowrap ${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity duration-200`}>
               <span className="font-extrabold text-sm tracking-tight flex items-center gap-1">
                 <span>TruckOS</span>
               </span>
@@ -139,7 +154,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Live Tracking Telemetry Pill in Sidebar */}
-        <div className={`px-3 py-2 border-b ${isDark ? 'border-white/5' : 'border-[#E5E7EB]'}`}>
+        <div className={`px-3 py-2 border-b shrink-0 ${menuOpen ? '' : 'lg:hidden'} ${isDark ? 'border-white/5' : 'border-[#E5E7EB]'}`}>
           <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[11px] font-numbers ${
             isDark
               ? 'bg-[#111827] border-white/10 text-gray-300'
@@ -157,7 +172,7 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
           {currentNav.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -166,7 +181,8 @@ export default function DashboardLayout({ children }) {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                title={item.label}
+                className={`flex items-center justify-between px-3 lg:px-4 py-2.5 rounded-lg text-[13px] font-medium whitespace-nowrap transition-all ${
                   active
                     ? 'bg-[#22C55E]/15 text-[#22C55E] font-semibold'
                     : isDark
@@ -175,12 +191,12 @@ export default function DashboardLayout({ children }) {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${active ? 'text-[#22C55E]' : ''}`} />
-                  <span>{item.label}</span>
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#22C55E]' : ''}`} />
+                  <span className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity duration-200`}>{item.label}</span>
                 </div>
                 {item.badge && (
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                    className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
                       active
                         ? 'bg-[#22C55E] text-black'
                         : isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-200 text-gray-700'
@@ -195,15 +211,15 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         {/* Footer Role Switcher & User Tag */}
-        <div className={`p-3 border-t ${isDark ? 'border-white/10' : 'border-[#E5E7EB]'}`}>
-          <div className={`p-2.5 rounded-2xl border flex items-center justify-between ${
+        <div className={`p-3 border-t shrink-0 ${isDark ? 'border-white/10' : 'border-[#E5E7EB]'}`}>
+          <div className={`p-2.5 rounded-2xl border flex items-center justify-between whitespace-nowrap overflow-hidden ${
             isDark ? 'bg-[#111827] border-white/10' : 'bg-[#F9FAFB] border-[#E5E7EB]'
           }`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center font-bold text-xs shrink-0">
                 {user?.name ? user.name[0] : 'U'}
               </div>
-              <div className="min-w-0">
+              <div className={`min-w-0 ${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity duration-200`}>
                 <div className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-[#111827]'}`}>
                   {user?.name || 'Administrator'}
                 </div>
@@ -215,7 +231,7 @@ export default function DashboardLayout({ children }) {
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+              className={`${menuOpen ? '' : 'lg:hidden'} p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors`}
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -224,7 +240,7 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* MAIN CONTENT WRAPPER */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-60">
+      <div className={`flex-1 flex flex-col min-w-0 transition-[padding] duration-300 ease-in-out ${menuOpen ? 'lg:pl-60' : 'lg:pl-16'}`}>
         {/* TOP HEADER */}
         <header
           className={`sticky top-0 z-30 h-14 border-b flex items-center justify-between px-4 sm:px-6 backdrop-blur-xl transition-colors duration-200 ${
