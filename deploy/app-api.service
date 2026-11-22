@@ -1,0 +1,23 @@
+[Unit]
+Description=6.11 BIS API
+After=network.target postgresql.service
+
+[Service]
+User=app
+Group=app
+WorkingDirectory=/srv/app/current/server
+EnvironmentFile=/srv/app/shared/app.env
+Environment=NODE_ENV=production
+Environment=PORT=4000
+# Create / update the tables and the first records, like on Render.
+ExecStartPre=/usr/bin/npm run migrate
+ExecStartPre=/usr/bin/npm run seed
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
