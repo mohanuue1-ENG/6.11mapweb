@@ -231,5 +231,24 @@ export function tripRoutes({ db, config, authenticate, events }) {
     }),
   );
 
+  // Deletes a finished trip and its recorded points (for example a test trip). A trip in progress must be ended first.
+  router.delete(
+    '/:id',
+    requireRole('COMPANY_ADMIN'),
+    asyncHandler(async (req, res) => {
+      const id = parse(uuid, req.params.id);
+      const { companyId, userId } = req.auth;
+      await db.tx(async (q) => {
+        const found = await q.query(`SELECT status, truck_id, driver_id FROM trips WHERE company_id = $1 AND id = $2 FOR UPDATE`, [companyId, id]);
+        if (!found.rows[0]) throw notFound('Trip not found');
+        if (found.rows[0].status === 'ACTIVE') throw new HttpError(409, 'TRIP_ACTIVE', 'This trip is still in progress. End it before deleting it.');
+        const points = await q.query(`DELETE FROM location_history WHERE company_id = $1 AND trip_id = $2`, [companyId, id]);
+        await q.query(`DELETE FROM trips WHERE company_id = $1 AND id = $2`, [companyId, id]);
+        await audit(q, { companyId, actorUserId: userId, action: 'TRIP_DELETED', details: { tripId: id, points: points.rowCount ?? null }, ip: req.ip });
+      });
+      res.status(204).end();
+    }),
+  );
+
   return router;
 }

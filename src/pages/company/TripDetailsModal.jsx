@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../services/api';
 import { coords, dateTime, duration, miles } from '../../services/format';
 import { ErrorBanner, Modal, Spinner } from '../../components/common/ui';
@@ -35,6 +35,20 @@ export default function TripDetailsModal({ tripId, onClose, onChanged }) {
     } catch (err) {
       setError(errorMessage(err, 'Could not recalculate the distance.'));
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm('Delete this trip and its GPS route? This cannot be undone.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api(`/trips/${tripId}`, { method: 'DELETE' });
+      onChanged?.();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err, 'Could not delete the trip.'));
       setBusy(false);
     }
   };
@@ -87,9 +101,14 @@ export default function TripDetailsModal({ tripId, onClose, onChanged }) {
           {view === 'map' ? <RouteReplayMap route={data.route} height="520px" /> : <RouteGlobe route={data.route} height="520px" />}
 
           {t.status === 'COMPLETED' && (
-            <button onClick={recalc} disabled={busy} className="text-xs font-semibold text-brand-green hover:underline flex items-center gap-1.5 disabled:opacity-60">
-              <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} /> Recalculate distance (use after late offline uploads)
-            </button>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <button onClick={recalc} disabled={busy} className="text-xs font-semibold text-brand-green hover:underline flex items-center gap-1.5 disabled:opacity-60">
+                <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} /> Recalculate distance (use after late offline uploads)
+              </button>
+              <button onClick={remove} disabled={busy} className="text-xs font-semibold text-red-500 hover:underline flex items-center gap-1.5 disabled:opacity-60">
+                <Trash2 className="w-3.5 h-3.5" /> Delete this trip
+              </button>
+            </div>
           )}
         </div>
       )}

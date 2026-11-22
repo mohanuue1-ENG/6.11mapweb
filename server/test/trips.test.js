@@ -9,6 +9,7 @@ let ctx, a, b;
 const as = (session) => ({
   get: (path) => ctx.api().get(V1 + path).set(bearer(session)),
   post: (path, body) => ctx.api().post(V1 + path).set(bearer(session)).send(body),
+  del: (path) => ctx.api().delete(V1 + path).set(bearer(session)),
 });
 const ago = (s) => new Date(Date.now() - s * 1000).toISOString();
 const fix = (secondsAgo, lat = 32.7, extra = {}) => ({
@@ -234,4 +235,29 @@ test('late offline points join the trip and a recalculation picks them up', asyn
 
   const active = (await as((await makeFleet(ctx, a, 'L2')).session).post('/trips/start', fix(5))).body.trip;
   assert.equal((await as(a).post(`/trips/${active.id}/recalculate-distance`)).status, 409);
+});
+
+test('an admin deletes a finished trip with its points; a trip in progress, another company and a driver cannot', async () => {
+  const f = await makeFleet(ctx, a, 'T9');
+  const start = await as(f.session).post('/trips/start', fix(100, 32.7));
+  const tripId = start.body.trip.id;
+  await upload(f.session, [point(80, 32.7005), point(60, 32.701)]);
+
+  // Still in progress: refused.
+  const busy = await as(a).del(`/trips/${tripId}`);
+  assert.equal(busy.status, 409);
+  assert.equal(busy.body.error.code, 'TRIP_ACTIVE');
+
+  assert.equal((await as(f.session).post(`/trips/${tripId}/end`, fix(5, 32.7015))).status, 200);
+
+  // A driver and another company are refused; the trip is still there.
+  assert.equal((await as(f.session).del(`/trips/${tripId}`)).status, 403);
+  assert.equal((await as(b).del(`/trips/${tripId}`)).status, 404);
+  assert.equal((await as(a).get(`/trips/${tripId}`)).status, 200);
+
+  assert.equal((await as(a).del(`/trips/${tripId}`)).status, 204);
+  assert.equal((await as(a).get(`/trips/${tripId}`)).status, 404);
+  const left = await ctx.db.query('SELECT count(*)::int AS n FROM location_history WHERE trip_id = $1', [tripId]);
+  assert.equal(left.rows[0].n, 0, 'its route points go with it');
+  assert.equal((await as(a).del(`/trips/${tripId}`)).status, 404);
 });

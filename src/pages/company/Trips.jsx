@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Route as RouteIcon, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Route as RouteIcon, ChevronLeft, ChevronRight, Eye, Trash2 } from 'lucide-react';
 import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import { api, errorMessage } from '../../services/api';
@@ -19,6 +19,7 @@ export default function Trips() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);
+  const [deleting, setDeleting] = useState('');
 
   const load = useCallback(async () => {
     const q = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
@@ -40,6 +41,26 @@ export default function Trips() {
   useEffect(() => {
     load();
   }, [load, signature]);
+
+  // Deletes a finished trip and its recorded points (for example a test trip).
+  const removeTrip = async (t) => {
+    if (t.status === 'ACTIVE') {
+      setError('This trip is still in progress. End it before deleting it.');
+      return;
+    }
+    if (!window.confirm(`Delete trip ${t.id.slice(0, 8)} (truck #${t.truck.truckNumber}) and its GPS route? This cannot be undone.`)) return;
+    setDeleting(t.id);
+    try {
+      await api(`/trips/${t.id}`, { method: 'DELETE' });
+      setError('');
+      if (openId === t.id) setOpenId(null);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, 'Could not delete the trip.'));
+    } finally {
+      setDeleting('');
+    }
+  };
 
   const set = (key) => (e) => {
     setOffset(0);
@@ -123,9 +144,20 @@ export default function Trips() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button onClick={() => setOpenId(t.id)} aria-label="View trip" title="View trip and route" className="p-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-brand-green">
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => setOpenId(t.id)} aria-label="View trip" title="View trip and route" className="p-1.5 rounded-lg border border-gray-300 dark:border-white/10 text-gray-500 hover:text-brand-green">
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => removeTrip(t)}
+                          disabled={deleting === t.id}
+                          aria-label="Delete trip"
+                          title={t.status === 'ACTIVE' ? 'End the trip before deleting it' : 'Delete trip'}
+                          className="p-1.5 rounded-lg border border-gray-300 dark:border-white/10 text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
