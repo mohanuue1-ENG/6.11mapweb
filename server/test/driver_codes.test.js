@@ -27,7 +27,7 @@ const lastCode = (to) => [...mails].reverse().find((m) => m.to === to).text.matc
 const uniqueEmail = (label) => `${label}-${crypto.randomBytes(4).toString('hex')}@example.test`;
 let phoneCounter = 1000000;
 const uniquePhone = () => `+1555${phoneCounter++}`;
-const strongPassword = () => `Pw-${crypto.randomBytes(8).toString('base64url')}`;
+const strongPassword = () => `Pw1-${crypto.randomBytes(8).toString('base64url')}`;
 
 // A driver the company has added with only a phone number: no email, no login yet.
 async function addDriver(name, number = uniquePhone(), session = admin) {

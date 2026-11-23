@@ -50,7 +50,7 @@ test('a reset link works once, sets the new password and ends every old session'
   await post('/auth/forgot-password', { email: c.email });
   const token = tokenFrom(lastMailTo(c.email).text);
 
-  const pw = `New-${crypto.randomBytes(8).toString('base64url')}`;
+  const pw = `New1-${crypto.randomBytes(8).toString('base64url')}`;
   assert.equal((await post('/auth/set-password', { token, password: pw })).status, 204);
   assert.equal((await post('/auth/login', { email: c.email, password: c.password })).status, 401); // old password dead
   assert.equal((await post('/auth/login', { email: c.email, password: pw })).status, 200);
@@ -83,7 +83,7 @@ test('a disabled account gets no reset email', async () => {
 test('change password needs the current password and keeps the user signed in', async () => {
   const c = await ctx.registerCompany('Changer Co');
   const other = await post('/auth/login', { email: c.email, password: c.password });
-  const newPw = `Chg-${crypto.randomBytes(8).toString('base64url')}`;
+  const newPw = `Chg1-${crypto.randomBytes(8).toString('base64url')}`;
 
   assert.equal((await post('/auth/change-password', { currentPassword: c.password, newPassword: newPw })).status, 401); // not signed in
   const wrong = await post('/auth/change-password', { currentPassword: 'not-my-password', newPassword: newPw }, c);

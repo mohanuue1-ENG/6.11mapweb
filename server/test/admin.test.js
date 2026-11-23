@@ -266,7 +266,7 @@ test('reports: trip summary, csv export and fleet activity, scoped to the compan
 
 test('a super admin can create a company with its first admin, who can then sign in', async () => {
   const email = `new-${crypto.randomBytes(3).toString('hex')}@example.test`;
-  const pw = `Pw-${crypto.randomBytes(8).toString('base64url')}`;
+  const pw = `Pw1-${crypto.randomBytes(8).toString('base64url')}`;
   const body = { companyName: 'Onboarded Freight', adminName: 'Olivia Owner', email, password: pw, dotNumber: 'US-DOT-9' };
 
   assert.equal((await ctx.api().post(`${V1}/admin/companies`).send(body)).status, 401);

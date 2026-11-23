@@ -27,7 +27,7 @@ after(async () => {
 
 async function makeSuperAdmin() {
   const email = `root-${crypto.randomBytes(4).toString('hex')}@example.test`;
-  const password = `Pw-${crypto.randomBytes(8).toString('base64url')}`;
+  const password = `Pw1-${crypto.randomBytes(8).toString('base64url')}`;
   await ctx.db.query(`INSERT INTO users (company_id, role, name, email, password_hash) VALUES (NULL, 'SUPER_ADMIN', 'Root', $1, $2)`, [email, await bcrypt.hash(password, 4)]);
   return { email, password };
 }
