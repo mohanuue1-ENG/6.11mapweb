@@ -123,7 +123,7 @@ export default function LiveTracking() {
       {/* Main Split: Map-First on mobile, 4-col split on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:flex-1 lg:min-h-0">
         {/* Right Column (Map): Order 1 on mobile (Map-First PRD), Order 2 on desktop */}
-        <div className="order-1 lg:order-2 lg:col-span-3 space-y-3 lg:min-h-0 lg:overflow-hidden">
+        <div className="order-1 lg:order-2 lg:col-span-3 space-y-3 lg:min-h-0 lg:overflow-hidden lg:flex lg:flex-col lg:space-y-0 lg:gap-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className={`inline-flex rounded-xl p-0.5 border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white'}`} role="tablist" aria-label="Map view">
               {[['globe', 'Globe'], ['map', 'Road map']].map(([id, label]) => (
@@ -151,47 +151,15 @@ export default function LiveTracking() {
           {view === 'globe' ? (
             <>
               {/* The globe stands on the very bottom of the page: the page padding below it is cancelled. */}
-              <div className={globeTruck ? '' : '-mb-4 sm:-mb-6 lg:-mb-8'}>
+              <div className={`lg:flex-1 lg:min-h-0 ${globeTruck ? '' : '-mb-4 sm:-mb-6 lg:-mb-8'}`}>
                 <FleetGlobe
                   trucks={trucks}
                   selectedId={globeId}
                   route={trip?.route || []}
                   onSelect={selectTruck}
-                  height={globeTruck ? 'clamp(240px, calc(100dvh - 30rem), 520px)' : 'clamp(280px, calc(100dvh - 17rem), 640px)'}
+                  height="clamp(280px, calc(100dvh - 17rem), 640px)"
                 />
               </div>
-              {globeTruck && (
-                <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'bg-dark-surface border-dark-card text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'}`}>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-base">Truck #{globeTruck.truckNumber}</span>
-                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#22C55E]/15 text-[#16A34A]">{globeTruck.trackingStatus}</span>
-                    <span className="text-xs text-[#6B7280]">Driver: {globeDriver ? globeDriver.name : 'Unassigned'}</span>
-                    <span className="ml-auto text-sm font-bold">{Math.round(globeTruck.speed || 0)} mph</span>
-                  </div>
-                  <div className="mt-3 space-y-2 text-xs">
-                    {trip === null && <div className="text-[#6B7280]">Loading the trip…</div>}
-                    {trip?.none && <div className="text-[#6B7280]">No trip is running now. The globe shows where the truck was last seen.</div>}
-                    {trip?.info && (
-                      <>
-                        <div className="flex items-start gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] mt-1 shrink-0" />
-                          <div>
-                            <div className="font-semibold">Trip started {dateTime(trip.info.startedAt)}</div>
-                            {trip.route[0] && <TruckPlace truck={{ currentLat: trip.route[0].latitude, currentLng: trip.route[0].longitude }} className="text-[#6B7280] truncate" />}
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] mt-1 shrink-0" />
-                          <div>
-                            <div className="font-semibold">Now</div>
-                            <TruckPlace truck={globeTruck} className="text-[#6B7280] truncate" />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <LiveTrackingMap

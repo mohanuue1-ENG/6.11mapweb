@@ -502,3 +502,7 @@ html.no-transitions *, html.no-transitions *::before, html.no-transitions *::aft
   transition: none !important;
 }
 .leaflet-container .leaflet-marker-icon:hover, .leaflet-container .leaflet-marker-icon:active { box-shadow: none !important; }
+
+/* Only up and down: the page never scrolls sideways, and no sideways scrollbar is drawn. */
+html, body { overflow-x: clip; }
+*::-webkit-scrollbar:horizontal { height: 0; display: none; }

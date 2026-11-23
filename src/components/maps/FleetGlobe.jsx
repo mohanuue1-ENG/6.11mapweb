@@ -5,12 +5,11 @@ import { geoOrthographic, geoPath, geoGraticule, geoDistance } from 'd3-geo';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
 
-const SIZE = 760;
-const WORLD_SCALE = 340;
+const SIZE = 1000;
+const WORLD_SCALE = 447;
 // The picture is a square canvas of which only the upper half is shown: the globe is a dome standing on the bottom edge.
-// Whole planet: the centre of the sphere is on that bottom edge. A chosen truck: the sphere moves up so the truck is in view.
+// The centre of the sphere is always on that bottom edge.
 const CY_WORLD = SIZE / 2;
-const CY_FOCUS = SIZE * 0.27;
 const land = feature(landTopo, landTopo.objects.land);
 const graticule = geoGraticule().step([10, 10])();
 const sphere = { type: 'Sphere' };
@@ -42,13 +41,14 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
       s.target = { rotation: [s.rotation[0], -20, 0], scale: WORLD_SCALE, cy: CY_WORLD };
       return;
     }
+    // A chosen truck: the globe turns and zooms to it (and its trip); the picture then fills the whole page.
     const pts = coords.length > 1 ? coords : [[truck.currentLng, truck.currentLat]];
     const lons = pts.map((c) => c[0]);
     const lats = pts.map((c) => c[1]);
     const cx = (Math.min(...lons) + Math.max(...lons)) / 2;
     const cy = (Math.min(...lats) + Math.max(...lats)) / 2;
     const span = Math.max(geoDistance([Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]), 0.0008);
-    s.target = { rotation: [-cx, -cy, 0], scale: Math.max(500, Math.min(3500, (SIZE * 0.2) / span)), cy: CY_FOCUS };
+    s.target = { rotation: [-cx, -cy, 0], scale: Math.max(660, Math.min(4600, (SIZE * 0.2) / span)), cy: CY_WORLD };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, coords.length]);
 
@@ -191,17 +191,26 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
     };
   }, []);
 
+  const focused = Boolean(selectedId) && located.some((t) => t.id === selectedId);
   return (
     <div
       className="relative w-full overflow-hidden"
-      style={{ height, WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)', maskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)' }}
+      style={
+        focused
+          ? { height: '100%', minHeight: height, containerType: 'size' }
+          : { height: '100%', minHeight: height, WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)', maskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)' }
+      }
     >
       <canvas
         ref={canvasRef}
         width={SIZE}
         height={SIZE}
-        className="cursor-grab active:cursor-grabbing absolute left-1/2 bottom-0"
-        style={{ width: `min(calc(2 * ${height}), 112%)`, aspectRatio: '1 / 1', transform: 'translate(-50%, 50%)', touchAction: 'none' }}
+        className="cursor-grab active:cursor-grabbing absolute left-1/2"
+        style={
+          focused
+            ? { top: '50%', width: 'max(100cqw, 100cqh)', aspectRatio: '1 / 1', transform: 'translate(-50%, -50%)', touchAction: 'none' }
+            : { bottom: 0, width: `min(calc(2 * ${height}), 112%)`, aspectRatio: '1 / 1', transform: 'translate(-50%, 50%)', touchAction: 'none' }
+        }
         aria-label="Globe with the live trucks. Press a truck to see its trip. Drag to turn the globe."
       />
     </div>

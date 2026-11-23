@@ -423,7 +423,7 @@ export default function DashboardLayout({ children }) {
         {passwordOpen && <ChangePasswordModal onClose={() => setPasswordOpen(false)} />}
 
         {/* MAIN DASHBOARD CONTENT */}
-        <main className="flex-1 w-full lg:m-3 lg:rounded-2xl lg:border lg:border-line tray p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 w-full lg:w-auto lg:m-3 lg:rounded-2xl lg:border lg:border-line tray p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>
