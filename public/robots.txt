@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /company/
+Disallow: /superadmin/
+Disallow: /driver/
+Disallow: /api/
+
+Sitemap: https://611truckos.com/sitemap.xml

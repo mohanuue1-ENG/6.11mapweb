@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
+import PageTitle from './components/common/PageTitle';
 import { AuthProvider, useAuth, homePathFor } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { GpsProvider } from './context/GpsContext';
@@ -112,6 +113,8 @@ const superAdmin = (page) => (
 
 function AppRoutes() {
   return (
+    <>
+    <PageTitle />
     <Routes>
       {/* Public Pages with Top Glass Navbar & Footer */}
       <Route path="/" element={<FirstVisit><PublicLayout><Home /></PublicLayout></FirstVisit>} />
@@ -159,6 +162,7 @@ function AppRoutes() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 
