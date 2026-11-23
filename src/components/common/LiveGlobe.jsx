@@ -25,7 +25,7 @@ const statusOf = (t) => STATUS[t.trackingStatus] || STATUS.offline;
 
 // A world globe on the dashboard. Every 10 seconds it turns to the next truck that has a GPS position and
 // shows what that truck is doing. The globe only turns when dragged; the "Open on Live Map" link opens the Live Map on that truck.
-export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow }) {
+export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow, focusId = null }) {
   const { isDark } = useTheme();
   const canvasRef = useRef(null);
   const barRef = useRef(null);
@@ -40,12 +40,25 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
   const rotation = useRef([100, -20, 0]);
   const cycleStart = useRef(Date.now());
   const flight = useRef(null);
-  const drag = useRef({ active: false, moved: false, x: 0, y: 0, resumeAt: 0 });
+  const drag = useRef({ active: false, moved: false, x: 0, y: 0, resumeAt: 0, vx: 0, vy: 0 });
   const openRef = useRef(null);
   useEffect(() => {
     onShow?.(current ? current.id : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id]);
+
+  // A truck picked in the list: turn to it and stay on it for a while before the tour goes on.
+  const holdUntil = useRef(0);
+  useEffect(() => {
+    if (!focusId) return;
+    const i = located.findIndex((t) => t.id === focusId);
+    if (i >= 0) {
+      holdUntil.current = Date.now() + 30000;
+      cycleStart.current = Date.now();
+      setIndex(i);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
 
   const flyTo = (t) => {
     if (!t) return;
@@ -59,6 +72,7 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
     cycleStart.current = Date.now();
     if (located.length > 1) {
       const id = setInterval(() => {
+        if (Date.now() < holdUntil.current) return;
         cycleStart.current = Date.now();
         setIndex((i) => (i + 1) % located.length);
       }, CYCLE_MS);
@@ -90,6 +104,9 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
       d.x = e.clientX;
       d.y = e.clientY;
       flight.current = null;
+      d.vx = 0; // a new touch stops a coasting globe at once
+      d.vy = 0;
+      d.t = performance.now();
       canvas.setPointerCapture?.(e.pointerId);
     };
     const move = (e) => {
@@ -100,12 +117,21 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
       d.x = e.clientX;
       d.y = e.clientY;
       const r = rotation.current;
+      // Rubber band: past the poles the globe still follows the finger, but with growing resistance; it springs back on release.
+      const lat = r[1] - dy * 0.4;
+      const over = lat > 85 ? lat - 85 : lat < -85 ? lat + 85 : 0;
+      const nextLat = over ? (lat > 0 ? 85 : -85) + over * 0.35 : lat;
+      d.vx = dx * 0.4;
+      d.vy = -dy * 0.4;
+      d.t = performance.now();
+      rotation.current = [r[0] + dx * 0.4, Math.max(-110, Math.min(110, nextLat)), 0];
       rotation.current = [r[0] + dx * 0.4, Math.max(-85, Math.min(85, r[1] - dy * 0.4)), 0];
     };
     const up = (e) => {
       if (!d.active) return;
       d.active = false;
       d.resumeAt = Date.now() + 3000;
+      if (performance.now() - d.t > 90) { d.vx = 0; d.vy = 0; } // held still before letting go: no throw
       canvas.releasePointerCapture?.(e.pointerId);
     };
     canvas.addEventListener('pointerdown', down);
@@ -122,6 +148,17 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
         rotation.current = f.ip(e);
         arc = Math.sin(Math.PI * u); // the camera lifts away in the middle of the move and settles back
         if (u >= 1) flight.current = null;
+      } else if (!drag.current.active && (Math.abs(drag.current.vx) > 0.02 || Math.abs(drag.current.vy) > 0.02 || Math.abs(rotation.current[1]) > 85.05)) {
+        // Let go: it keeps the speed of the throw and slows down (a spring with velocity, not a stop), and a tilt past the pole eases back.
+        const dd = drag.current;
+        const r = rotation.current;
+        let lat = r[1] + dd.vy;
+        if (Math.abs(lat) > 85) lat += ((lat > 0 ? 85 : -85) - lat) * 0.14;
+        if (Math.abs(Math.abs(lat) - 85) < 0.06 && Math.abs(lat) > 85) lat = lat > 0 ? 85 : -85;
+        rotation.current = [r[0] + dd.vx, lat, 0];
+        dd.vx *= 0.95;
+        dd.vy *= 0.95;
+        dd.resumeAt = Date.now() + 1500;
       } else if (!drag.current.active && Date.now() > drag.current.resumeAt) {
         // A slow drift while a truck is shown, so the globe feels alive.
         rotation.current = [rotation.current[0] + 0.03, rotation.current[1], 0];

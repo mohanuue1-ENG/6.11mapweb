@@ -107,14 +107,14 @@ export default function Login() {
       }
     >
       {errorMsg && (
-        <div role="alert" className="mb-5 p-3 rounded-xl bg-status-red/10 border border-status-red/30 text-status-red text-sm flex items-start gap-2">
+        <div key={errorMsg} role="alert" className="anim-shake mb-5 p-3 rounded-xl bg-status-red/10 border border-status-red/30 text-status-red text-sm flex items-start gap-2">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {challenge && (
-        <form onSubmit={handleVerify} className="space-y-5">
+        <form onSubmit={handleVerify} className="slide-from-right space-y-5">
           {challenge.devCode && (
             <p className="p-3 rounded-xl bg-status-amber/10 border border-status-amber/30 text-sm">Test mode: your code is <strong>{challenge.devCode}</strong></p>
           )}

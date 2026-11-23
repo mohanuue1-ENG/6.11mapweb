@@ -50,8 +50,8 @@ function SlidingLinks() {
     <nav aria-label="Main" onMouseLeave={() => moveTo(active)} onBlur={() => moveTo(active)} className="relative hidden md:flex items-center">
       <span
         aria-hidden="true"
-        className="absolute top-0 bottom-0 rounded-lg bg-brand-green/15"
-        style={{ left: pill.left, width: pill.width, opacity: pill.visible ? 1 : 0, transition: animate.current ? 'left 300ms var(--ease-out), width 300ms var(--ease-out), opacity 200ms ease' : 'none' }}
+        className="absolute left-0 top-0 bottom-0 rounded-lg bg-brand-green/15"
+        style={{ width: pill.width, transform: `translateX(${pill.left}px)`, opacity: pill.visible ? 1 : 0, transition: animate.current ? 'transform 300ms var(--ease-out), width 300ms var(--ease-out), opacity 200ms ease' : 'none' }}
       />
       {LINKS.map((l) => (
         <NavLink

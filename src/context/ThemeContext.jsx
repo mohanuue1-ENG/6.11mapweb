@@ -13,6 +13,9 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     const applyTheme = (isDark) => {
       const root = document.documentElement;
+      // Switch at once: no element fades from the old colours while the others have already changed.
+      root.classList.add('no-transitions');
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('no-transitions')));
       if (isDark) {
         root.classList.add('dark');
         root.classList.remove('light');

@@ -1,5 +1,6 @@
 import ThemeToggle from '../common/ThemeToggle';
 import GlobalSearch from '../common/GlobalSearch';
+import Tooltip from '../common/Tooltip';
 import { useAutoClose } from '../../hooks/useAutoClose';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
@@ -151,32 +152,33 @@ export default function DashboardLayout({ children }) {
             <span className={menuOpen ? '' : 'lg:hidden'}>{item.group}</span>
           </div>
         )}
-        <Link
-          to={item.path}
-          ref={(el) => { if (el) linkRefs.current[item.path] = el; }}
-          onClick={() => setSidebarOpen(false)}
-          title={item.label}
-          className={`relative z-10 flex items-center justify-between px-3 lg:px-4 py-2.5 rounded-lg text-[13px] font-medium whitespace-nowrap calm ${
-            active
-              ? 'text-[#22C55E] font-semibold'
-              : isDark
-              ? 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
-              : 'text-[#6B7280] hover:text-[#111827] hover:bg-gray-100'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Icon
-              className={`w-4 h-4 shrink-0 transition-transform duration-500 ${active ? 'text-[#22C55E] scale-125' : 'scale-100'}`}
-              style={{ transitionTimingFunction: 'cubic-bezier(.34,1.56,.64,1)' }}
-            />
-            <span className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity duration-200`}>{item.label}</span>
-          </div>
-          {item.badge && (
-            <span className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity text-[9px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-[#22C55E] text-black' : isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
-              {item.badge}
-            </span>
-          )}
-        </Link>
+        <Tooltip label={item.label} disabled={menuOpen}>
+          <Link
+            to={item.path}
+            ref={(el) => { if (el) linkRefs.current[item.path] = el; }}
+            onClick={() => setSidebarOpen(false)}
+            className={`relative z-10 flex items-center justify-between px-3 lg:px-4 py-2.5 rounded-lg text-[13px] font-medium whitespace-nowrap calm ${
+              active
+                ? 'text-[#22C55E] font-semibold'
+                : isDark
+                ? 'text-[#9CA3AF] hover:text-white hover:bg-white/5'
+                : 'text-[#6B7280] hover:text-[#111827] hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Icon
+                className={`w-4 h-4 shrink-0 transition-transform duration-500 ${active ? 'text-[#22C55E] scale-125' : 'scale-100'}`}
+                style={{ transitionTimingFunction: 'cubic-bezier(.34,1.56,.64,1)' }}
+              />
+              <span className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity duration-200`}>{item.label}</span>
+            </div>
+            {item.badge && (
+              <span className={`${menuOpen ? 'lg:opacity-100' : 'lg:opacity-0'} transition-opacity text-[9px] font-bold px-1.5 py-0.5 rounded-md ${active ? 'bg-[#22C55E] text-black' : isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-200 text-gray-700'}`}>
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        </Tooltip>
       </React.Fragment>
     );
   };
@@ -282,11 +284,12 @@ export default function DashboardLayout({ children }) {
           {/* The glass lens behind the current page */}
           {pill && (
             <div
-              ref={headRef}
               aria-hidden="true"
-              className="ios-lens absolute rounded-xl pointer-events-none z-0"
-              style={{ margin: 0, top: pill.top, left: pill.left, width: pill.width, height: pill.height, transition: 'top 520ms cubic-bezier(.34,1.45,.64,1), height 400ms ease, left 400ms ease, width 400ms ease' }}
-            />
+              className="absolute left-0 top-0 pointer-events-none z-0"
+              style={{ margin: 0, width: pill.width, height: pill.height, transform: `translate(${pill.left}px, ${pill.top}px)`, transition: 'transform 520ms cubic-bezier(.34,1.45,.64,1), width 400ms ease, height 400ms ease' }}
+            >
+              <div ref={headRef} className="ios-lens absolute inset-0 rounded-xl" />
+            </div>
           )}
         </nav>
 

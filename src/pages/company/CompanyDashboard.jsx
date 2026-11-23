@@ -35,7 +35,8 @@ export default function CompanyDashboard() {
   const navigate = useNavigate();
   // The truck the globe is showing now, highlighted in the list.
   const [shownId, setShownId] = useState(null);
-  // A tap on a truck opens the Live Map page on that truck.
+  // A tap on a truck in the list marks it and turns the globe to it; the dashboard stays where it is.
+  const [pickedId, setPickedId] = useState(null);
   const openOnMap = (truck) => navigate(`/company/live-tracking?truck=${encodeURIComponent(truck.id)}`);
 
   const isDark = theme === 'dark';
@@ -118,7 +119,7 @@ export default function CompanyDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* The globe turns to a different live truck every 10 seconds (2 cols). The full map is on the Live Map page. */}
         <div className="lg:col-span-2">
-          <LiveGlobe trucks={trucks} drivers={drivers} onOpen={openOnMap} onShow={setShownId} />
+          <LiveGlobe trucks={trucks} drivers={drivers} onOpen={openOnMap} focusId={pickedId} onShow={(id) => { setShownId(id); setPickedId((p) => (p && p !== id ? null : p)); }} />
         </div>
 
         {/* Right: Live Trucks Compact Panel (PRD 9.3) */}
@@ -141,14 +142,15 @@ export default function CompanyDashboard() {
               {trucks.length === 0 && <p className={`text-xs py-6 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No trucks yet.</p>}
               {trucks.map((truck) => {
                 const driver = drivers.find((d) => d.id === truck.assignedDriverId);
-                const isSelected = shownId === truck.id;
+                const isSelected = (pickedId || shownId) === truck.id;
                 const dot = truck.trackingStatus === 'moving' ? '#22C55E' : truck.trackingStatus === 'stopped' ? '#F59E0B' : '#94A3B8';
                 return (
                   <button
                     type="button"
                     key={truck.id}
-                    onClick={() => openOnMap(truck)}
-                    title={`Open Live Map on truck ${truck.truckNumber}`}
+                    onClick={() => setPickedId(truck.id)}
+                    aria-pressed={isSelected}
+                    title={`Show truck ${truck.truckNumber} on the globe`}
                     className={`calm w-full h-11 px-3 rounded-xl border flex items-center gap-2.5 text-left text-xs whitespace-nowrap transition-colors ${
                       isSelected
                         ? 'border-[#22C55E] bg-[#22C55E]/12'

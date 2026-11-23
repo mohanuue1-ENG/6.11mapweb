@@ -90,7 +90,7 @@ export default function LiveTracking() {
   });
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 lg:flex lg:flex-col lg:h-[calc(100dvh-9.5rem)] lg:space-y-0 lg:gap-4 lg:overflow-hidden">
       {/* Top Banner */}
       <div
         className={`p-5 rounded-3xl border transition-all ${
@@ -121,9 +121,9 @@ export default function LiveTracking() {
       </div>
 
       {/* Main Split: Map-First on mobile, 4-col split on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:flex-1 lg:min-h-0">
         {/* Right Column (Map): Order 1 on mobile (Map-First PRD), Order 2 on desktop */}
-        <div className="order-1 lg:order-2 lg:col-span-3 space-y-3">
+        <div className="order-1 lg:order-2 lg:col-span-3 space-y-3 lg:min-h-0 lg:overflow-hidden">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className={`inline-flex rounded-xl p-0.5 border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-white'}`} role="tablist" aria-label="Map view">
               {[['globe', 'Globe'], ['map', 'Road map']].map(([id, label]) => (
@@ -150,13 +150,16 @@ export default function LiveTracking() {
 
           {view === 'globe' ? (
             <>
-              <FleetGlobe
-                trucks={trucks}
-                selectedId={globeId}
-                route={trip?.route || []}
-                onSelect={selectTruck}
-                height="clamp(420px, 60dvh, 620px)"
-              />
+              {/* The globe stands on the very bottom of the page: the page padding below it is cancelled. */}
+              <div className={globeTruck ? '' : '-mb-4 sm:-mb-6 lg:-mb-8'}>
+                <FleetGlobe
+                  trucks={trucks}
+                  selectedId={globeId}
+                  route={trip?.route || []}
+                  onSelect={selectTruck}
+                  height={globeTruck ? 'clamp(240px, calc(100dvh - 30rem), 520px)' : 'clamp(280px, calc(100dvh - 17rem), 640px)'}
+                />
+              </div>
               {globeTruck && (
                 <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'bg-dark-surface border-dark-card text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'}`}>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -189,7 +192,6 @@ export default function LiveTracking() {
                   </div>
                 </div>
               )}
-              {!globeTruck && <p className="text-[11px] text-[#9CA3AF]">Press a truck on the globe or in the list to see where its trip started and where it is now.</p>}
             </>
           ) : (
             <LiveTrackingMap
@@ -197,13 +199,13 @@ export default function LiveTracking() {
               selectedTruckId={selectedTruckId}
               focus={focus}
               onSelectTruck={(truck) => setSelectedTruckId(truck.id)}
-              height="clamp(440px, 72dvh, 720px)"
+              height="clamp(300px, calc(100dvh - 17rem), 720px)"
             />
           )}
         </div>
 
         {/* Left Column: Fleet List & Search (Order 2 on mobile, Order 1 on desktop) */}
-        <div className="order-2 lg:order-1 lg:col-span-1 space-y-3 flex flex-col h-[400px] lg:h-[700px]">
+        <div className="order-2 lg:order-1 lg:col-span-1 space-y-3 flex flex-col h-[400px] lg:h-full lg:min-h-0">
           {/* Search & Filter Header */}
           <div
             className={`p-3.5 rounded-2xl border space-y-2.5 ${

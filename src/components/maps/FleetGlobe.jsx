@@ -6,7 +6,11 @@ import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
 
 const SIZE = 760;
-const WORLD_SCALE = 300;
+const WORLD_SCALE = 340;
+// The picture is a square canvas of which only the upper half is shown: the globe is a dome standing on the bottom edge.
+// Whole planet: the centre of the sphere is on that bottom edge. A chosen truck: the sphere moves up so the truck is in view.
+const CY_WORLD = SIZE / 2;
+const CY_FOCUS = SIZE * 0.27;
 const land = feature(landTopo, landTopo.objects.land);
 const graticule = geoGraticule().step([10, 10])();
 const sphere = { type: 'Sphere' };
@@ -21,7 +25,7 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
   const { isDark } = useTheme();
   const nightRef = useRef(isDark);
   nightRef.current = isDark;
-  const state = useRef({ rotation: [100, -20, 0], scale: WORLD_SCALE, target: null, drag: null, pulse: 0 });
+  const state = useRef({ rotation: [100, -20, 0], scale: WORLD_SCALE, target: null, drag: null, pulse: 0, cy: CY_WORLD });
   const located = useMemo(() => trucks.filter((t) => Number.isFinite(t.currentLat) && Number.isFinite(t.currentLng)), [trucks]);
   const live = useRef({ located, selectedId, route: [], onSelect });
   const coords = useMemo(
@@ -35,7 +39,7 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
     const s = state.current;
     const truck = located.find((t) => t.id === selectedId);
     if (!truck) {
-      s.target = { rotation: [s.rotation[0], -20, 0], scale: WORLD_SCALE };
+      s.target = { rotation: [s.rotation[0], -20, 0], scale: WORLD_SCALE, cy: CY_WORLD };
       return;
     }
     const pts = coords.length > 1 ? coords : [[truck.currentLng, truck.currentLat]];
@@ -44,7 +48,7 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
     const cx = (Math.min(...lons) + Math.max(...lons)) / 2;
     const cy = (Math.min(...lats) + Math.max(...lats)) / 2;
     const span = Math.max(geoDistance([Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]), 0.0008);
-    s.target = { rotation: [-cx, -cy, 0], scale: Math.max(600, Math.min(3500, (SIZE * 0.3) / span)) };
+    s.target = { rotation: [-cx, -cy, 0], scale: Math.max(500, Math.min(3500, (SIZE * 0.2) / span)), cy: CY_FOCUS };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, coords.length]);
 
@@ -109,11 +113,12 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
       if (s.target) {
         s.rotation = s.rotation.map((v, i) => v + (s.target.rotation[i] - v) * 0.08);
         s.scale += (s.target.scale - s.scale) * 0.08;
+        s.cy += (s.target.cy - s.cy) * 0.08;
         if (Math.abs(s.scale - s.target.scale) < 0.5 && Math.abs(s.rotation[0] - s.target.rotation[0]) < 0.001) s.target = null;
       } else if (!s.drag && !sel) {
         s.rotation = [s.rotation[0] + 0.04, s.rotation[1], 0];
       }
-      proj.rotate(s.rotation).scale(s.scale);
+      proj.rotate(s.rotation).scale(s.scale).translate([SIZE / 2, s.cy]);
       s.pulse = (s.pulse + 0.02) % 1;
 
       drawGlobe(ctx, proj, { size: SIZE, night: nightRef.current, land, graticule, sphere });
@@ -187,13 +192,16 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
   }, []);
 
   return (
-    <div className="flex items-center justify-center overflow-hidden relative" style={{ height: `min(${height}, 100vw)` }}>
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ height, WebkitMaskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)', maskImage: 'linear-gradient(to bottom, #000 55%, transparent 97%)' }}
+    >
       <canvas
         ref={canvasRef}
         width={SIZE}
         height={SIZE}
-        className="cursor-grab active:cursor-grabbing"
-        style={{ width: '100%', maxWidth: height, height: 'auto', aspectRatio: '1 / 1', touchAction: 'none' }}
+        className="cursor-grab active:cursor-grabbing absolute left-1/2 bottom-0"
+        style={{ width: `min(calc(2 * ${height}), 112%)`, aspectRatio: '1 / 1', transform: 'translate(-50%, 50%)', touchAction: 'none' }}
         aria-label="Globe with the live trucks. Press a truck to see its trip. Drag to turn the globe."
       />
     </div>

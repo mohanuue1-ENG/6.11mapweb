@@ -36,7 +36,7 @@ export function PageHeader({ icon: Icon, title, subtitle, children }) {
 export function ErrorBanner({ message }) {
   if (!message) return null;
   return (
-    <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs flex items-center gap-2">
+    <div key={message} role="alert" className="anim-shake p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs flex items-center gap-2">
       <AlertCircle className="w-4 h-4 shrink-0" />
       <span>{message}</span>
     </div>
