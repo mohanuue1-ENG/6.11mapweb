@@ -83,6 +83,8 @@ export function loadConfig(env = process.env) {
     // For trying the flow before email is set up: the API hands the code back instead of emailing it.
     // Anyone who knows a driver's email could then create that driver's account, so never leave it on for real use.
     codeTestMode: env.CODE_TEST_MODE === 'true',
+    // "Continue with Google": the OAuth client id made in Google Cloud Console. Empty = the button is off.
+    googleClientId: env.GOOGLE_CLIENT_ID || '',
     codeTtlMinutes: int(env.CODE_TTL_MINUTES, 10),
     // How long a verified phone is remembered, and how long a driver's session can last without a new code.
     trustedDeviceDays: int(env.TRUSTED_DEVICE_DAYS, 30),

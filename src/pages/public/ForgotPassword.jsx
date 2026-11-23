@@ -29,11 +29,11 @@ export default function ForgotPassword() {
     return (
       <AuthShell title="Check your email">
         <div className="space-y-5 text-sm">
-          <div className="flex items-start gap-3 p-4 rounded-2xl border border-brand-green/40 bg-brand-green/10">
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-green/40 bg-brand-green/10">
             <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 shrink-0" />
             <p>If an account exists for <span className="font-semibold">{email}</span>, we have sent a link to choose a new password. It works once and expires in 1 hour.</p>
           </div>
-          <Link to="/login" className="inline-flex h-11 items-center px-5 rounded-xl border border-line font-semibold hover:border-brand-green transition-colors">Back to sign in</Link>
+          <Link to="/login" className="inline-flex h-11 items-center px-5 rounded-lg border border-line font-semibold hover:border-brand-green transition-colors">Back to sign in</Link>
         </div>
       </AuthShell>
     );
@@ -64,11 +64,11 @@ export default function ForgotPassword() {
               placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-12 rounded-xl border border-line bg-surface text-ink placeholder:text-mute pl-11 pr-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
+              className="w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute pl-11 pr-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
             />
           </div>
         </div>
-        <button type="submit" disabled={submitting} className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60">
+        <button type="submit" disabled={submitting} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
           {submitting ? (<><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>) : 'Send reset link'}
         </button>
       </form>

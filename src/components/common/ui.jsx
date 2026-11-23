@@ -9,8 +9,8 @@ export function Panel({ children, className = '' }) {
   return (
     <div
       className={`rounded-3xl border p-5 transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
-      } ${className}`}
+        isDark ? 'bg-dark-surface border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
+      } ${className} raised`}
     >
       {children}
     </div>
@@ -44,9 +44,13 @@ export function ErrorBanner({ message }) {
 }
 
 export function Spinner({ label = 'Loading…' }) {
+  // A placeholder of the page, shown only if the answer takes longer than 150 ms.
   return (
-    <div role="status" className="flex items-center justify-center gap-2 py-10 text-xs text-gray-400">
-      <Loader2 className="w-4 h-4 animate-spin" /> {label}
+    <div role="status" aria-label={label} className="skeleton-delay py-6 space-y-3">
+      <div className="skeleton h-4 w-1/3" />
+      <div className="skeleton h-12 w-full" />
+      <div className="skeleton h-12 w-full" />
+      <div className="skeleton h-12 w-4/5" />
     </div>
   );
 }
@@ -54,7 +58,7 @@ export function Spinner({ label = 'Loading…' }) {
 export function useFieldClass() {
   const { isDark } = useTheme();
   return `w-full rounded-xl px-3 py-2 text-xs border focus:outline-none focus:border-brand-green ${
-    isDark ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
+    isDark ? 'bg-dark-surface2 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
   }`;
 }
 
@@ -69,7 +73,7 @@ export function Field({ label, children }) {
 }
 
 export const primaryButton =
-  'px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20 disabled:opacity-60 disabled:cursor-not-allowed';
+  'px-4 py-2.5 text-xs font-bold rounded-lg bg-brand-green text-black hover:bg-brand-green-hover flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed';
 
 // A dialog drawn on <body>. Inside the page it would be trapped under the header and clipped by the
 // page's own layout, which cut the form off on small screens. The page behind stays still, and the
@@ -91,15 +95,15 @@ export function Modal({ title, onClose, children, wide = false, xl = false }) {
   const { isDark } = useTheme();
   useDialogBehavior(onClose);
   return createPortal(
-    <div className="fixed inset-0 z-[10000] overflow-y-auto overscroll-contain bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <div className="anim-fade fixed inset-0 z-[10000] overflow-y-auto overscroll-contain bg-black/70" onClick={onClose}>
       <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
         <div
           role="dialog"
           aria-modal="true"
           aria-label={title}
           onClick={(e) => e.stopPropagation()}
-          className={`relative w-full ${xl ? 'max-w-5xl' : wide ? 'max-w-3xl' : 'max-w-lg'} rounded-3xl border shadow-2xl p-5 sm:p-6 ${
-            isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827]'
+          className={`anim-pop floating relative w-full ${xl ? 'max-w-5xl' : wide ? 'max-w-3xl' : 'max-w-lg'} rounded-3xl border shadow-2xl p-5 sm:p-6 ${
+            isDark ? 'bg-dark-surface border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827]'
           }`}
         >
           <div className={`flex items-center justify-between pb-3 mb-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>

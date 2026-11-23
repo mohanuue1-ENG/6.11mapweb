@@ -16,7 +16,7 @@ const form = (over = {}) => ({
   companyName: `Account First ${unique()}`,
   contactName: 'Amina Driver',
   email: `amina-${unique()}@example.test`,
-  password: 'a-long-enough-pass',
+  password: 'A-long-enough-pass-1',
   ...over,
 });
 const login = (email, password) => ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email, password });

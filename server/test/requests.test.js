@@ -116,7 +116,7 @@ test('approving creates the company, a 7-day trial and a one-time link by email,
   assert.equal(noLogin.status, 401);
 
   // Choosing a password works once; then the admin signs in and sees only their company, on trial.
-  const pw = `Pw-${crypto.randomBytes(8).toString('base64url')}`;
+  const pw = `Aa1!${crypto.randomBytes(8).toString("base64url")}`;
   assert.equal((await ctx.api().post(`${V1}/auth/set-password`).send({ token, password: pw })).status, 204);
   const login = await ctx.api().post(`${V1}/auth/login`).send({ email: body.email, password: pw });
   assert.equal(login.status, 200);
@@ -140,8 +140,14 @@ test('approving creates the company, a 7-day trial and a one-time link by email,
 test('set-password rejects bad, weak and expired links and ends old sessions', async () => {
   const post = (b) => ctx.api().post(`${V1}/auth/set-password`).send(b);
   assert.equal((await post({})).status, 400);
-  assert.equal((await post({ token: 'x'.repeat(43), password: 'GoodPassword123' })).body.error.code, 'INVALID_TOKEN');
+  assert.equal((await post({ token: 'x'.repeat(43), password: 'Good-Password-123!' })).body.error.code, 'INVALID_TOKEN');
   assert.equal((await post({ token: 'x'.repeat(43), password: 'short' })).status, 400);
+  // A password that is too easy is refused before the link is even looked at: no special character, or a common one.
+  const noSpecial = await post({ token: 'x'.repeat(43), password: 'GoodPassword123' });
+  assert.equal(noSpecial.status, 400);
+  assert.match(JSON.stringify(noSpecial.body), /special character/);
+  assert.equal((await post({ token: 'x'.repeat(43), password: 'P@ssw0rd!' })).status, 400);
+  assert.match(JSON.stringify((await post({ token: 'x'.repeat(43), password: 'Welcome123!' })).body), /too common/);
 
   const body = request({ companyName: 'Expiring Freight' });
   await ctx.api().post(`${V1}/registration-requests`).send(body);
@@ -151,7 +157,7 @@ test('set-password rejects bad, weak and expired links and ends old sessions', a
   const token = tokenFrom(res.body.inviteUrl);
 
   await ctx.db.query(`UPDATE password_tokens SET expires_at = now() - interval '1 minute' WHERE token_hash IS NOT NULL AND used_at IS NULL`);
-  assert.equal((await post({ token, password: 'GoodPassword123' })).body.error.code, 'INVALID_TOKEN');
+  assert.equal((await post({ token, password: 'Good-Password-123!' })).body.error.code, 'INVALID_TOKEN');
 });
 
 test('a request can be rejected and then creates nothing', async () => {

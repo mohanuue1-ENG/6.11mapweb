@@ -20,12 +20,9 @@ export default function Features() {
         <p className="text-mute text-lg">The tools your office and your drivers use every day.</p>
       </div>
       <div className="grid md:grid-cols-2 gap-5">
-        {FEATURES.map(({ icon: Icon, title, text }) => (
-          <div key={title} className="p-6 rounded-3xl border border-line bg-surface">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="w-10 h-10 rounded-xl bg-brand-green/15 text-accent inline-flex items-center justify-center"><Icon className="w-5 h-5" /></span>
-              <h2 className="font-bold text-lg">{title}</h2>
-            </div>
+        {FEATURES.map(({ title, text }) => (
+          <div key={title} className="p-6 rounded-xl border border-line bg-surface">
+            <h2 className="font-bold text-lg mb-3">{title}</h2>
             <p className="text-sm text-mute mb-3">{text}</p>
             <ul className="space-y-1.5 text-sm">
               {DETAILS[title].map((d) => (
@@ -35,7 +32,7 @@ export default function Features() {
           </div>
         ))}
       </div>
-      <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-2xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
+      <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
         Create account <ArrowRight className="w-4 h-4" />
       </Link>
     </div>

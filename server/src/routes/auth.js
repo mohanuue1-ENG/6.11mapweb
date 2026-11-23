@@ -14,6 +14,7 @@ import {
 import { audit } from '../services/audit.js';
 import { hashToken, revokeAllForUser } from '../services/tokens.js';
 import { HttpError, notFound } from '../errors.js';
+import { strongPassword, password as basicPassword } from '../validation.js';
 import { createCode, verifyCode, createTrustedDevice, checkTrustedDevice, maskEmail, samePhone } from '../services/verification.js';
 
 const REFRESH_COOKIE = 'rt';
@@ -28,11 +29,9 @@ const optionalText = (max) =>
     .transform((v) => (v ? v : null));
 
 const email = z.string().trim().toLowerCase().email().max(254);
-// bcrypt only reads the first 72 bytes, so longer passwords are rejected rather than silently truncated.
-const password = z
-  .string()
-  .min(8, 'Password must be at least 8 characters')
-  .refine((v) => Buffer.byteLength(v, 'utf8') <= 72, 'Password must be at most 72 bytes');
+// On the website a person chooses a strong password; a driver choosing one in the app needs the basic rule.
+const password = strongPassword;
+const driverPassword = basicPassword;
 
 const registerSchema = z.object({
   companyName: z.string().trim().min(2).max(200),
@@ -74,12 +73,12 @@ const driverLookupSchema = z.object({ phone: phoneField }).strict();
 const driverRequestSchema = z.object({ phone: phoneField, email }).strict();
 const driverCheckSchema = z.object({ email, code: codeField, purpose: z.enum(['register', 'reset']).optional() }).strict();
 const driverRegisterSchema = z
-  .object({ phone: phoneField, email, code: codeField, name: z.string().trim().min(2).max(200), password, remember: z.boolean().optional() })
+  .object({ phone: phoneField, email, code: codeField, name: z.string().trim().min(2).max(200), password: driverPassword, remember: z.boolean().optional() })
   .strict();
-const driverResetSchema = z.object({ phone: phoneField, email, code: codeField, newPassword: password }).strict();
+const driverResetSchema = z.object({ phone: phoneField, email, code: codeField, newPassword: driverPassword }).strict();
 const verifyLoginSchema = z.object({ challengeId: z.string().uuid(), code: codeField, remember: z.boolean().optional() }).strict();
 
-export function authRoutes({ db, config, authenticate, mailer }) {
+export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
   const router = Router();
 
   // A fixed hash to compare against when the account does not exist, so the
@@ -431,6 +430,33 @@ export function authRoutes({ db, config, authenticate, mailer }) {
         return issueRefreshToken(q, config, { userId: user.id, meta: meta(req) });
       });
 
+      sendSession(req, res, 200, user, refreshToken);
+    }),
+  );
+
+  // POST /auth/google — "Continue with Google". The browser sends the credential Google gave it; Google has already
+  // checked the person, so a known, active account is signed in without a password or an emailed code. An address
+  // we do not know answers { newUser: true, email, name } so the website can start "Create account" with it filled in.
+  router.post(
+    '/google',
+    asyncHandler(async (req, res) => {
+      if (!config.googleClientId) throw new HttpError(503, 'GOOGLE_NOT_SET', 'Google sign-in is not set up yet.');
+      const { credential } = parse(z.object({ credential: z.string().min(20).max(6000) }).strict(), req.body);
+      const g = await googleVerify(credential, config.googleClientId);
+      if (!g || !g.email) throw unauthorized('Google could not confirm this sign-in. Try again.');
+      if (!g.emailVerified) throw forbidden('Your Google email address is not verified.');
+      const row = (await db.query('SELECT id FROM users WHERE lower(email) = $1', [g.email])).rows[0];
+      if (!row) return res.json({ newUser: true, email: g.email, name: g.name });
+      const user = await loadUser(db, row.id);
+      assertAccountUsable(user);
+      if (user.role === 'DRIVER' && !isMobile(req)) {
+        throw new HttpError(403, 'USE_THE_APP', 'Drivers sign in with the app. The website is for company administrators.');
+      }
+      const refreshToken = await db.tx(async (q) => {
+        await q.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+        await audit(q, { companyId: user.company_id, actorUserId: user.id, action: 'LOGIN_SUCCESS', details: { role: user.role, via: 'google' }, ip: req.ip });
+        return issueRefreshToken(q, config, { userId: user.id, meta: meta(req) });
+      });
       sendSession(req, res, 200, user, refreshToken);
     }),
   );

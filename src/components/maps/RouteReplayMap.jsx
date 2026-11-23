@@ -81,19 +81,16 @@ export default function RouteReplayMap({ route = [], height = '420px' }) {
     <div className="space-y-2">
       <div className="rounded-2xl overflow-hidden border border-white/10 relative" style={{ height }}>
         <div ref={elRef} className="w-full h-full" />
-        <div className="absolute top-2 right-2 z-[1000] flex gap-0.5 rounded-xl bg-white/95 p-0.5 shadow border border-gray-200" role="group" aria-label="Map look">
+        <select
+          aria-label="Map look"
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          className="absolute top-2 right-2 z-[1000] h-8 rounded-lg bg-white/95 border border-gray-200 px-2 text-[11px] font-bold text-gray-800 shadow"
+        >
           {MAP_STYLES.map((st) => (
-            <button
-              key={st.id}
-              type="button"
-              onClick={() => setStyle(st.id)}
-              aria-pressed={style === st.id}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg ${style === st.id ? 'bg-[#22C55E] text-black' : 'text-gray-700 hover:bg-gray-100'}`}
-            >
-              {st.label}
-            </button>
+            <option key={st.id} value={st.id}>{st.label}</option>
           ))}
-        </div>
+        </select>
       </div>
       {route.length === 0 && <p className="text-xs text-gray-400 text-center">No GPS points were recorded for this selection.</p>}
       {route.length > 1 && (

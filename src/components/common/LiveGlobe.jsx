@@ -4,11 +4,12 @@ import { interpolate } from 'd3-interpolate';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
 import TruckPlace from './TruckPlace';
+import { drawGlobe } from '../maps/globeStyle';
 import { Radio, MapPinned } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 const SIZE = 520;
-const RADIUS = 240;
+const RADIUS = 252;
 const CYCLE_MS = 10000;
 const FLY_MS = 1800;
 const land = feature(landTopo, landTopo.objects.land);
@@ -17,13 +18,13 @@ const sphere = { type: 'Sphere' };
 
 const STATUS = {
   moving: { color: '#22C55E', label: 'Moving' },
-  stopped: { color: '#EF9F27', label: 'Stopped' },
+  stopped: { color: '#F59E0B', label: 'Stopped' },
   offline: { color: '#94A3B8', label: 'Offline' },
 };
 const statusOf = (t) => STATUS[t.trackingStatus] || STATUS.offline;
 
 // A world globe on the dashboard. Every 10 seconds it turns to the next truck that has a GPS position and
-// shows what that truck is doing. Clicking the globe or the card opens the Live Map on that truck.
+// shows what that truck is doing. The globe only turns when dragged; the "Open on Live Map" link opens the Live Map on that truck.
 export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow }) {
   const { isDark } = useTheme();
   const canvasRef = useRef(null);
@@ -49,7 +50,7 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
   const flyTo = (t) => {
     if (!t) return;
     const from = rotation.current.slice();
-    const to = [-t.currentLng, -t.currentLat, 0];
+    const to = [-t.currentLng, Math.max(-85, Math.min(85, -t.currentLat + 28)), 0];
     flight.current = { from, to, ip: interpolate(from, to), t0: performance.now() };
   };
 
@@ -81,7 +82,7 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
     let raf = 0;
     let pulse = 0;
 
-    // Drag the globe with the mouse or a finger. A press without movement still opens the Live Map.
+    // Drag the globe with the mouse or a finger. Pressing it does nothing: the dashboard stays where it is.
     const d = drag.current;
     const down = (e) => {
       d.active = true;
@@ -106,7 +107,6 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
       d.active = false;
       d.resumeAt = Date.now() + 3000;
       canvas.releasePointerCapture?.(e.pointerId);
-      if (!d.moved) openRef.current?.();
     };
     canvas.addEventListener('pointerdown', down);
     canvas.addEventListener('pointermove', move);
@@ -114,42 +114,23 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
     canvas.addEventListener('pointercancel', up);
 
     const frame = (now) => {
+      let arc = 0;
       const f = flight.current;
       if (f) {
         const u = Math.min(1, (now - f.t0) / FLY_MS);
         const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
         rotation.current = f.ip(e);
+        arc = Math.sin(Math.PI * u); // the camera lifts away in the middle of the move and settles back
         if (u >= 1) flight.current = null;
       } else if (!drag.current.active && Date.now() > drag.current.resumeAt) {
         // A slow drift while a truck is shown, so the globe feels alive.
         rotation.current = [rotation.current[0] + 0.03, rotation.current[1], 0];
       }
-      proj.rotate(rotation.current);
+      proj.rotate(rotation.current).scale(RADIUS * (1 - 0.14 * arc));
       pulse = (pulse + 0.02) % 1;
 
       const night = live.current.dark;
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      ctx.beginPath();
-      path(sphere);
-      ctx.fillStyle = night ? '#10233f' : '#BFDBFE';
-      ctx.fill();
-      ctx.beginPath();
-      path(graticule);
-      ctx.strokeStyle = night ? 'rgba(148,163,184,0.15)' : 'rgba(30,64,175,0.12)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.beginPath();
-      path(land);
-      ctx.fillStyle = night ? '#2f6f4f' : '#86EFAC';
-      ctx.fill();
-      ctx.strokeStyle = night ? '#4ade80' : '#16A34A';
-      ctx.lineWidth = 0.6;
-      ctx.stroke();
-      ctx.beginPath();
-      path(sphere);
-      ctx.strokeStyle = night ? 'rgba(96,165,250,0.6)' : '#60A5FA';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      drawGlobe(ctx, proj, { size: SIZE, night, land, graticule, sphere });
 
       const { located: list, index: idx } = live.current;
       const centre = [-rotation.current[0], -rotation.current[1]];
@@ -208,20 +189,20 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
       </h2>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <div
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && open()}
-          aria-label={current ? `Drag to turn the globe. Press to open Live Map on truck ${current.truckNumber}` : 'Live map'}
-          className="shrink-0 rounded-full cursor-grab active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]"
-          style={{ width: 'min(300px, 70vw)', height: 'min(300px, 70vw)' }}
-        >
-          <canvas ref={canvasRef} width={SIZE} height={SIZE} style={{ width: '100%', height: '100%', touchAction: 'none' }} />
+        {/* Half a globe, centred; the lower half fades out of sight (no line under it). */}
+        <div className="relative w-full flex justify-center">
+          <div
+            aria-label="Globe with the live trucks. Drag to turn it."
+            className="no-3d relative overflow-hidden cursor-grab active:cursor-grabbing rounded-t-full"
+            style={{ width: 'min(560px, 100%)', aspectRatio: '2 / 1', WebkitMaskImage: 'linear-gradient(to bottom, #000 58%, transparent 96%), radial-gradient(ellipse 50% 100% at 50% 100%, #000 78%, transparent 100%)', WebkitMaskComposite: 'source-in', maskImage: 'linear-gradient(to bottom, #000 58%, transparent 96%), radial-gradient(ellipse 50% 100% at 50% 100%, #000 78%, transparent 100%)', maskComposite: 'intersect' }}
+          >
+            <canvas ref={canvasRef} width={SIZE} height={SIZE} style={{ width: '100%', height: 'auto', aspectRatio: '1 / 1', display: 'block', touchAction: 'none' }} />
+          </div>
         </div>
 
-        <div className={`w-full rounded-2xl border p-4 ${dark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+        <div className={`concentric w-full border p-3 ${dark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
           {current ? (
-            <>
+            <div key={current.id} className="anim-slide">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className={`text-lg font-bold ${strong}`}>Truck #{current.truckNumber}</p>
                 <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: `${status.color}26`, color: dark ? status.color : '#374151' }}>
@@ -231,15 +212,15 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
               <p className={`text-sm ${mu} mt-0.5`}>Driver: {driver ? driver.name : 'Unassigned'}</p>
 
               <div className="grid grid-cols-3 gap-2 mt-3">
-                <div className={`rounded-xl border px-3 py-2 ${box}`}>
+                <div className={`concentric-inner border px-3 py-2 ${box}`}>
                   <div className={`text-[11px] ${mu}`}>Speed</div>
                   <div className={`text-base font-bold ${strong}`}>{Math.round(current.speed || 0)} mph</div>
                 </div>
-                <div className={`rounded-xl border px-3 py-2 ${box}`}>
+                <div className={`concentric-inner border px-3 py-2 ${box}`}>
                   <div className={`text-[11px] ${mu}`}>Updated</div>
                   <div className={`text-base font-bold ${strong}`}>{current.lastUpdate ? new Date(current.lastUpdate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</div>
                 </div>
-                <div className={`rounded-xl border px-3 py-2 ${box}`}>
+                <div className={`concentric-inner border px-3 py-2 ${box}`}>
                   <div className={`text-[11px] ${mu}`}>Truck</div>
                   <div className={`text-base font-bold ${strong}`}>{(index % located.length) + 1} / {located.length}</div>
                 </div>
@@ -248,14 +229,14 @@ export default function LiveGlobe({ trucks = [], drivers = [], onOpen, onShow })
               <TruckPlace truck={current} className={`text-sm ${mu} mt-3 truncate`} />
 
               <div className="flex items-center justify-between mt-3">
-                <button type="button" onClick={open} className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#16A34A] hover:underline">
+                <button type="button" onClick={open} className="inline-flex items-center gap-1.5 text-xs font-semibold text-link hover:underline">
                   <MapPinned className="w-3.5 h-3.5" /> Open on Live Map
                 </button>
               </div>
               <div className={`h-[3px] rounded mt-3 overflow-hidden ${dark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                <div ref={barRef} className="h-full bg-[#22C55E]" style={{ width: 0 }} />
+                <div ref={barRef} className="h-full grad-oklch" style={{ width: 0 }} />
               </div>
-            </>
+            </div>
           ) : (
             <div className={`text-sm ${mu} py-3 flex items-start gap-2`}>
               <Radio className="w-4 h-4 mt-0.5 shrink-0" />

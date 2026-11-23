@@ -55,9 +55,7 @@ export default function Download() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20">
       <div className="max-w-2xl space-y-4">
-        <span className="inline-flex items-center gap-2 text-xs font-semibold text-accent bg-brand-green/10 border border-brand-green/30 rounded-full px-3 py-1">
-          <Smartphone className="w-3.5 h-3.5" /> For drivers
-        </span>
+        <span className="text-sm font-semibold text-accent">For drivers</span>
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
           Get the driver app<span className="text-brand-green">.</span>
         </h1>
@@ -67,9 +65,9 @@ export default function Download() {
       </div>
 
       <div className="mt-10 grid md:grid-cols-2 gap-5">
-        <section className="rounded-3xl border border-line bg-surface p-6 space-y-4">
+        <section className="rounded-xl border border-line bg-surface p-6 space-y-4">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-brand-green/15 text-accent inline-flex items-center justify-center"><Smartphone className="w-5 h-5" /></span>
+            <span className="w-10 h-10 rounded-lg bg-brand-green/15 text-accent inline-flex items-center justify-center"><Smartphone className="w-5 h-5" /></span>
             <div>
               <h2 className="font-bold">Android</h2>
               <p className="text-xs text-mute">Phones and tablets</p>
@@ -79,7 +77,7 @@ export default function Download() {
             <a
               href={ANDROID_URL}
               {...(ANDROID_URL.endsWith('.apk') ? { download: '' } : {})}
-              className="h-12 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors shadow-lg shadow-brand-green/20"
+              className="h-12 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors"
             >
               <DownloadIcon className="w-4 h-4" /> Download for Android
             </a>
@@ -89,19 +87,19 @@ export default function Download() {
               The Android app is being prepared. It will be available to download here soon.
             </p>
           )}
-          {androidReady === null && <div className="h-12 rounded-xl bg-surface-2 animate-pulse" aria-hidden="true" />}
+          {androidReady === null && <div className="h-12 rounded-lg bg-surface-2" aria-hidden="true" />}
         </section>
 
-        <section className="rounded-3xl border border-line bg-surface p-6 space-y-4">
+        <section className="rounded-xl border border-line bg-surface p-6 space-y-4">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-brand-green/15 text-accent inline-flex items-center justify-center"><Apple className="w-5 h-5" /></span>
+            <span className="w-10 h-10 rounded-lg bg-brand-green/15 text-accent inline-flex items-center justify-center"><Apple className="w-5 h-5" /></span>
             <div>
               <h2 className="font-bold">iPhone</h2>
               <p className="text-xs text-mute">iOS</p>
             </div>
           </div>
           {IOS_URL ? (
-            <a href={IOS_URL} className="h-12 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors shadow-lg shadow-brand-green/20">
+            <a href={IOS_URL} className="h-12 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
               <DownloadIcon className="w-4 h-4" /> Get it for iPhone
             </a>
           ) : (
@@ -110,12 +108,12 @@ export default function Download() {
         </section>
       </div>
 
-      <section className="mt-5 rounded-3xl border border-line bg-surface p-6">
+      <section className="mt-5 rounded-xl border border-line bg-surface p-6">
         <h2 className="font-bold mb-4">How to install on Android</h2>
         <ol className="space-y-3">
           {STEPS.map((s, i) => (
             <li key={s} className="flex gap-3 text-sm">
-              <span className="w-6 h-6 rounded-full bg-brand-green text-[#052E16] text-xs font-bold inline-flex items-center justify-center shrink-0">{i + 1}</span>
+              <span className="w-6 h-6 rounded-md bg-brand-green text-[#052E16] text-xs font-bold inline-flex items-center justify-center shrink-0">{i + 1}</span>
               <span className="text-mute leading-relaxed">{s}</span>
             </li>
           ))}
@@ -125,12 +123,12 @@ export default function Download() {
         </p>
       </section>
 
-      <section className="mt-5 rounded-3xl border border-line bg-surface p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <section className="mt-5 rounded-xl border border-line bg-surface p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-bold">Sending this to your drivers?</h2>
           <p className="text-sm text-mute mt-1">Copy the link and send it by message. They also need the email and password you set up for them under Drivers.</p>
         </div>
-        <button type="button" onClick={copy} className="h-11 px-5 inline-flex items-center justify-center gap-2 rounded-xl border border-line font-semibold hover:border-brand-green transition-colors shrink-0">
+        <button type="button" onClick={copy} className="h-11 px-5 inline-flex items-center justify-center gap-2 rounded-lg border border-line font-semibold hover:border-brand-green transition-colors shrink-0">
           {copied ? <><Check className="w-4 h-4 text-accent" /> Copied</> : <><Copy className="w-4 h-4" /> Copy link</>}
         </button>
       </section>

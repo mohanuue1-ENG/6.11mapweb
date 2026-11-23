@@ -7,7 +7,7 @@ import AuthShell from '../../components/layout/AuthShell';
 import { clearDraft, readDraft } from '../../services/signupDraft';
 
 const input =
-  'w-full h-11 rounded-xl border border-line bg-surface text-ink placeholder:text-mute px-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
+  'w-full h-11 rounded-lg border border-line bg-surface text-ink placeholder:text-mute px-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
 
 function Field({ id, label, hint, children }) {
   return (
@@ -104,11 +104,11 @@ export default function RequestAccess() {
     return (
       <AuthShell title="Request received">
         <div className="space-y-5 text-sm">
-          <div className="flex items-start gap-3 p-4 rounded-2xl border border-brand-green/40 bg-brand-green/10">
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-green/40 bg-brand-green/10">
             <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 shrink-0" />
             <p>Thank you. We will review your request. Once your company is approved you can sign in with <span className="font-semibold">{sentTo}</span> and the password you chose.</p>
           </div>
-          <Link to="/" className="inline-flex h-11 items-center px-5 rounded-xl border border-line font-semibold hover:border-brand-green transition-colors">Back to the website</Link>
+          <Link to="/" className="inline-flex h-11 items-center px-5 rounded-lg border border-line font-semibold hover:border-brand-green transition-colors">Back to the website</Link>
         </div>
       </AuthShell>
     );
@@ -124,7 +124,7 @@ export default function RequestAccess() {
       footer={<>Already a customer? <Link to="/login" className="text-accent font-semibold hover:underline">Sign in</Link></>}
     >
       {hasPlans && <Steps step={step + 1} />}
-      <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-3 text-sm">
+      <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm">
         <div className="min-w-0">
           <div className="font-semibold truncate">{draft.name}</div>
           <div className="text-xs text-mute truncate">{draft.email}</div>
@@ -151,7 +151,7 @@ export default function RequestAccess() {
             <Field id="ra-dot" label="USDOT number" hint="optional"><input id="ra-dot" className={`${input} uppercase`} value={f.dotNumber} onChange={set('dotNumber')} /></Field>
             <Field id="ra-mc" label="MC number" hint="optional"><input id="ra-mc" className={`${input} uppercase`} value={f.mcNumber} onChange={set('mcNumber')} /></Field>
           </div>
-          <button type="submit" disabled={submitting || plans === null} className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60">
+          <button type="submit" disabled={submitting || plans === null} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
             {submitting ? (<><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>) : hasPlans ? 'Continue' : 'Send request'}
           </button>
         </form>
@@ -167,7 +167,7 @@ export default function RequestAccess() {
                 role="radio"
                 aria-checked={planId === p.id}
                 onClick={() => setPlanId(p.id)}
-                className={`w-full text-left p-4 rounded-2xl border-2 transition-colors ${planId === p.id ? 'border-brand-green bg-brand-green/10' : 'border-line bg-surface hover:border-brand-green/50'}`}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${planId === p.id ? 'border-brand-green bg-brand-green/10' : 'border-line bg-surface hover:border-brand-green/50'}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-bold">{p.name}</span>
@@ -180,8 +180,8 @@ export default function RequestAccess() {
           </div>
           <p className="text-xs text-mute">You pay securely by card on the next page. Your dashboard opens as soon as the payment is confirmed.</p>
           <div className="flex gap-3">
-            <button type="button" onClick={() => setStep(0)} disabled={submitting} className="h-12 px-5 rounded-xl border border-line font-semibold hover:border-brand-green transition-colors">Back</button>
-            <button type="button" onClick={submit} disabled={submitting || !planId} className="flex-1 h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60">
+            <button type="button" onClick={() => setStep(0)} disabled={submitting} className="h-12 px-5 rounded-lg border border-line font-semibold hover:border-brand-green transition-colors">Back</button>
+            <button type="button" onClick={submit} disabled={submitting || !planId} className="flex-1 h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
               {submitting ? (<><Loader2 className="w-4 h-4 animate-spin" /> Opening payment…</>) : 'Continue to payment'}
             </button>
           </div>

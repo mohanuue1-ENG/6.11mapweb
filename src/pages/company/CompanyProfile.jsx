@@ -67,12 +67,12 @@ export default function CompanyProfile() {
   };
 
   const card = `p-5 rounded-3xl border transition-colors ${
-    isDark ? 'border-white/10 bg-[#0B0F14] text-white' : 'border-gray-200 bg-white text-[#111827] shadow-sm'
+    isDark ? 'border-white/10 bg-dark-surface text-white' : 'border-gray-200 bg-white text-[#111827] shadow-sm'
   }`;
   const muted = isDark ? 'text-gray-400' : 'text-gray-500';
   const tile = `p-3.5 rounded-2xl border ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`;
   const inputClass = `w-full rounded-xl px-3 py-2 text-xs border focus:outline-none focus:border-brand-green ${
-    isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+    isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
   }`;
 
   const limitText = usage?.truckLimit == null ? 'Unlimited' : usage.truckLimit;
@@ -90,7 +90,7 @@ export default function CompanyProfile() {
         {!editing && (
           <button
             onClick={startEdit}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20 self-start"
+            className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 self-start"
           >
             <Edit2 className="w-4 h-4" /> Edit Profile
           </button>
@@ -153,7 +153,7 @@ export default function CompanyProfile() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-brand-green text-black font-bold hover:bg-brand-green-hover disabled:opacity-60"
+                  className="px-5 py-2 rounded-lg bg-brand-green text-black font-bold hover:bg-brand-green-hover disabled:opacity-60"
                 >
                   {saving ? 'Saving…' : 'Save Changes'}
                 </button>

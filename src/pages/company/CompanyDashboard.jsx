@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import StatCard from '../../components/common/StatCard';
+import Accordion from '../../components/common/Accordion';
+import HoverLabel from '../../components/common/HoverLabel';
 import LiveGlobe from '../../components/common/LiveGlobe';
 import TruckPlace from '../../components/common/TruckPlace';
 import {
@@ -57,7 +59,7 @@ export default function CompanyDashboard() {
       <div
         className={`p-5 sm:p-6 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
           isDark
-            ? 'bg-[#0B0F14] border-white/10 text-white shadow-xl'
+            ? 'bg-dark-surface border-white/10 text-white shadow-xl'
             : 'bg-white border-gray-200 text-[#111827] shadow-sm'
         }`}
       >
@@ -70,11 +72,6 @@ export default function CompanyDashboard() {
               <h1 className="text-xl sm:text-2xl font-bold">
                 {company?.name || user?.companyName} Dashboard
               </h1>
-              {user?.isInternal && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40 uppercase tracking-wider font-numbers">
-                  Internal Fleet ($0 / mo)
-                </span>
-              )}
             </div>
             <p className={`text-xs mt-1 ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
               {[company?.dotNumber && `USDOT: ${company.dotNumber}`, company?.mcNumber && `MC: ${company.mcNumber}`].filter(Boolean).join(' • ') || 'Fleet overview'}
@@ -82,45 +79,39 @@ export default function CompanyDashboard() {
           </div>
         </div>
 
-        {/* Quick Top Actions */}
-        <div className="flex items-center gap-2">
-          <Link
-            to="/company/trucks"
-            className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-1.5 ${
-              isDark
-                ? 'border-white/10 hover:border-[#22C55E] text-white hover:bg-white/5'
-                : 'border-gray-200 hover:border-[#22C55E] text-gray-800 hover:bg-gray-50'
-            }`}
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-[#22C55E]" /> Add Truck
-          </Link>
-          <Link
-            to="/company/drivers"
-            className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-1.5 ${
-              isDark
-                ? 'border-white/10 hover:border-[#22C55E] text-white hover:bg-white/5'
-                : 'border-gray-200 hover:border-[#22C55E] text-gray-800 hover:bg-gray-50'
-            }`}
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-[#22C55E]" /> Add Driver
-          </Link>
+        {/* Quick actions: each opens its form on the next page, and says what it will do when pointed at */}
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { to: '/company/trucks?add=1', label: 'Add truck', hover: 'Register a truck' },
+            { to: '/company/drivers?add=1', label: 'Add driver', hover: 'Invite a driver' },
+          ].map((b) => (
+            <Link
+              key={b.to}
+              to={b.to}
+              className={`group hit px-3.5 py-2.5 text-xs font-semibold rounded-lg border flex items-center gap-1.5 ${
+                isDark ? 'border-white/10 hover:border-[#22C55E] text-white hover:bg-white/5' : 'border-gray-200 hover:border-[#22C55E] text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-[#22C55E]" /> <HoverLabel label={b.label} hover={b.hover} />
+            </Link>
+          ))}
           <Link
             to="/company/live-tracking"
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-[#22C55E] text-black hover:bg-[#16a34a] transition-all flex items-center gap-1.5 shadow-lg shadow-[#22C55E]/20 active:scale-95"
+            className="group hit px-4 py-2.5 text-xs font-bold rounded-lg bg-[#22C55E] text-black hover:bg-[#16a34a] flex items-center gap-1.5"
           >
-            <Navigation className="w-3.5 h-3.5" /> Fullscreen Map
+            <Navigation className="w-3.5 h-3.5" /> <HoverLabel label="Live map" hover="Open live map" />
           </Link>
         </div>
       </div>
 
-      {/* Summary numbers */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <StatCard title="Total trucks" value={totalTrucks} icon={Truck} color="blue" subtitle="In your fleet" />
-        <StatCard title="Moving" value={movingTrucks} icon={Navigation} color="green" subtitle={`${share(movingTrucks)} of fleet`} />
-        <StatCard title="Stopped" value={stoppedTrucks} icon={StopCircle} color="amber" subtitle={`${share(stoppedTrucks)} of fleet`} />
-        <StatCard title="Offline" value={offlineTrucks} icon={WifiOff} color="gray" subtitle={`${share(offlineTrucks)} of fleet`} />
-        <StatCard title="Active drivers" value={activeDrivers} icon={Users} color="blue" subtitle="Assigned operators" />
-        <StatCard title="Active trips" value={activeTrips} icon={PlayCircle} color="green" subtitle={alertCount > 0 ? `${alertCount} unread alert${alertCount === 1 ? '' : 's'}` : 'Journeys underway'} />
+      {/* Summary numbers: the biggest first. Each card opens the page behind it. */}
+      <div className="stagger grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <StatCard to="/company/trucks" hint="View all trucks →" title="Total trucks" value={totalTrucks} icon={Truck} color="blue" subtitle="In your fleet" />
+        <StatCard to="/company/live-tracking" hint="See them moving →" title="Moving" value={movingTrucks} icon={Navigation} color="green" subtitle={`${share(movingTrucks)} of fleet`} />
+        <StatCard to="/company/live-tracking" hint="See where they are →" title="Stopped" value={stoppedTrucks} icon={StopCircle} color="amber" subtitle={`${share(stoppedTrucks)} of fleet`} />
+        <StatCard to="/company/live-tracking" hint="See last positions →" title="Offline" value={offlineTrucks} icon={WifiOff} color="gray" subtitle={`${share(offlineTrucks)} of fleet`} />
+        <StatCard to="/company/drivers" hint="Manage drivers →" title="Active drivers" value={activeDrivers} icon={Users} color="blue" subtitle="Assigned operators" />
+        <StatCard to="/company/trips" hint="Open trips →" title="Active trips" value={activeTrips} icon={PlayCircle} color="green" subtitle={alertCount > 0 ? `${alertCount} unread alert${alertCount === 1 ? '' : 's'}` : 'Journeys underway'} />
       </div>
 
       {/* Main Grid: Prominent Live GPS Map + Live Trucks Panel (PRD 9.3) */}
@@ -135,7 +126,7 @@ export default function CompanyDashboard() {
           <div
             className={`p-4 rounded-3xl border space-y-3 flex flex-col h-full min-h-[420px] max-h-[640px] ${
               isDark
-                ? 'bg-[#0B0F14] border-white/10 text-white shadow-xl'
+                ? 'bg-dark-surface border-white/10 text-white shadow-xl'
                 : 'bg-white border-gray-200 text-[#111827] shadow-sm'
             }`}
           >
@@ -146,7 +137,7 @@ export default function CompanyDashboard() {
             </div>
 
             {/* One line per truck, one under the other */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            <div className="stagger flex-1 overflow-y-auto space-y-2 pr-1 fade-edges-y py-2">
               {trucks.length === 0 && <p className={`text-xs py-6 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No trucks yet.</p>}
               {trucks.map((truck) => {
                 const driver = drivers.find((d) => d.id === truck.assignedDriverId);
@@ -158,7 +149,7 @@ export default function CompanyDashboard() {
                     key={truck.id}
                     onClick={() => openOnMap(truck)}
                     title={`Open Live Map on truck ${truck.truckNumber}`}
-                    className={`w-full h-11 px-3 rounded-xl border flex items-center gap-2.5 text-left text-xs whitespace-nowrap transition-colors ${
+                    className={`calm w-full h-11 px-3 rounded-xl border flex items-center gap-2.5 text-left text-xs whitespace-nowrap transition-colors ${
                       isSelected
                         ? 'border-[#22C55E] bg-[#22C55E]/12'
                         : isDark
@@ -182,109 +173,78 @@ export default function CompanyDashboard() {
         </div>
       </div>
 
-      {/* Bottom Section: Recent Trip Activity & Alerts (PRD 9.3) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Trips Table (2 cols) */}
-        <div
-          className={`lg:col-span-2 p-5 rounded-3xl border space-y-3 ${
-            isDark
-              ? 'bg-[#0B0F14] border-white/10 text-white shadow-xl'
-              : 'bg-white border-gray-200 text-[#111827] shadow-sm'
-          }`}
-        >
-          <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-            <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-              <PlayCircle className="w-4 h-4 text-[#22C55E]" /> Recent Fleet Trips ({trips.length})
-            </h3>
-            <Link to="/company/trips" className="text-xs text-[#22C55E] hover:underline font-semibold">
-              View All Trips
-            </Link>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className={`border-b text-[11px] uppercase tracking-wider font-semibold ${
-                  isDark ? 'border-white/10 text-[#9CA3AF]' : 'border-gray-200 text-[#6B7280]'
-                }`}>
-                  <th className="py-2.5 px-3">Trip ID</th>
-                  <th className="py-2.5 px-3">Truck</th>
-                  <th className="py-2.5 px-3">Driver</th>
-                  <th className="py-2.5 px-3">Start Location</th>
-                  <th className="py-2.5 px-3">Distance</th>
-                  <th className="py-2.5 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y font-numbers ${isDark ? 'divide-white/5' : 'divide-gray-100'}`}>
-                {recentTrips.map((t) => {
-                  const trk = trucks.find((tr) => tr.id === t.truckId);
-                  const drv = drivers.find((d) => d.id === t.driverId);
-                  return (
-                    <tr key={t.id} className={isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}>
-                      <td className="py-3 px-3 font-bold text-[#22C55E]">{String(t.id).slice(0, 8)}</td>
-                      <td className="py-3 px-3 font-semibold">
-                        #{trk ? trk.truckNumber : 'N/A'}
-                      </td>
-                      <td className={`py-3 px-3 ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{drv ? drv.name : 'Driver'}</td>
-                      <td className={`py-3 px-3 truncate max-w-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.startAddress}</td>
-                      <td className="py-3 px-3 font-bold">{t.distance == null ? '—' : `${t.distance} mi`}</td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                            t.status === 'active'
-                              ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40'
-                              : 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40'
-                          }`}
-                        >
-                          ● {t.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      {/* Below the fold: folded sections. Trips are open, alerts open only when there is something new. */}
+      <div className="stagger grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2">
+          <Accordion
+            title="Recent fleet trips"
+            icon={PlayCircle}
+            badge={trips.length}
+            action={<Link to="/company/trips" className="text-xs text-link hover:underline font-semibold whitespace-nowrap">View all</Link>}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className={`border-b text-[11px] uppercase tracking-wider font-semibold ${isDark ? 'border-white/10 text-[#9CA3AF]' : 'border-gray-200 text-[#6B7280]'}`}>
+                    <th className="py-2.5 px-3">Trip</th>
+                    <th className="py-2.5 px-3">Truck</th>
+                    <th className="py-2.5 px-3">Driver</th>
+                    <th className="py-2.5 px-3">Start</th>
+                    <th className="py-2.5 px-3">Distance</th>
+                    <th className="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y font-numbers ${isDark ? 'divide-white/5' : 'divide-gray-100'}`}>
+                  {recentTrips.length === 0 && (
+                    <tr><td colSpan={6} className={`py-6 px-3 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No trips yet. They appear when a driver starts one in the app.</td></tr>
+                  )}
+                  {recentTrips.map((t) => {
+                    const trk = trucks.find((tr) => tr.id === t.truckId);
+                    const drv = drivers.find((d) => d.id === t.driverId);
+                    return (
+                      <tr key={t.id} className={isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}>
+                        <td className="py-3 px-3 font-bold text-[#22C55E]">{String(t.id).slice(0, 8)}</td>
+                        <td className="py-3 px-3 font-semibold">#{trk ? trk.truckNumber : 'N/A'}</td>
+                        <td className={`py-3 px-3 ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{drv ? drv.name : 'Driver'}</td>
+                        <td className={`py-3 px-3 truncate max-w-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t.startAddress}</td>
+                        <td className="py-3 px-3 font-bold">{t.distance == null ? '—' : `${t.distance} mi`}</td>
+                        <td className="py-3 px-3">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${t.status === 'active' ? 'bg-[#22C55E]/15 text-[#16A34A]' : isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Accordion>
         </div>
 
-        {/* Recent Alerts Feed */}
-        <div
-          className={`p-5 rounded-3xl border space-y-3 ${
-            isDark
-              ? 'bg-[#0B0F14] border-white/10 text-white shadow-xl'
-              : 'bg-white border-gray-200 text-[#111827] shadow-sm'
-          }`}
+        <Accordion
+          key={alertCount > 0 ? 'new' : 'none'}
+          title="Notifications"
+          icon={AlertTriangle}
+          badge={alertCount > 0 ? `${alertCount} new` : null}
+          defaultOpen={alertCount > 0}
+          action={<Link to="/company/notifications" className="text-xs text-link hover:underline font-semibold whitespace-nowrap">All alerts</Link>}
         >
-          <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-            <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-[#F59E0B]" /> Notifications Feed
-            </h3>
-            <Link to="/company/notifications" className="text-xs text-[#22C55E] hover:underline font-semibold">
-              All Alerts
-            </Link>
-          </div>
-
-          <div className="space-y-2.5">
+          <div className="space-y-2">
+            {notifications.length === 0 && <p className={`text-xs py-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Nothing new.</p>}
             {notifications.slice(0, 4).map((notif) => (
-              <div
-                key={notif.id}
-                className={`p-3 rounded-2xl border text-xs space-y-1 ${
-                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between">
+              <div key={notif.id} className={`p-3 rounded-lg border text-xs space-y-1 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-center justify-between gap-2">
                   <span className="font-bold">{notif.title}</span>
-                  <span className={`text-[10px] font-numbers ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
+                  <span className={`text-[10px] font-numbers shrink-0 ${isDark ? 'text-[#9CA3AF]' : 'text-[#6B7280]'}`}>
                     {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <p className={`text-[11px] line-clamp-2 leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {notif.message}
-                </p>
+                <p className={`text-[11px] line-clamp-2 leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{notif.message}</p>
               </div>
             ))}
           </div>
-        </div>
+        </Accordion>
       </div>
     </div>
   );

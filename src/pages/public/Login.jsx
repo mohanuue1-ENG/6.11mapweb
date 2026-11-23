@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Loader2, Lock, Mail } from 'lucide-react';
+import PasswordField from '../../components/common/PasswordField';
+import GoogleButton from '../../components/common/GoogleButton';
+import { sounds } from '../../utils/sound';
 import { useAuth, homePathFor } from '../../context/AuthContext';
 import { errorMessage } from '../../services/api';
 import AuthShell from '../../components/layout/AuthShell';
@@ -8,7 +11,7 @@ import AuthShell from '../../components/layout/AuthShell';
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, verifyLogin } = useAuth();
+  const { login, verifyLogin, loginWithGoogle } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +36,7 @@ export default function Login() {
     setErrorMsg('');
     setSubmitting(true);
     try {
-      const res = await login(email, password);
+      const res = await login(email.trim().toLowerCase(), password);
       if (res.verification) {
         setChallenge(res.verification);
         setCode('');
@@ -43,7 +46,24 @@ export default function Login() {
       finish(res);
     } catch (err) {
       setErrorMsg(errorMessage(err, 'Sign in failed. Please try again.'));
+      sounds.error();
       setSubmitting(false);
+    }
+  };
+
+  const onGoogle = async (credential) => {
+    setErrorMsg('');
+    try {
+      const res = await loginWithGoogle(credential);
+      if (res.newUser) {
+        // Not an account yet: carry on to "Create account" with the Google name and email filled in.
+        navigate('/create-account', { state: { google: { email: res.email, name: res.name } } });
+        return;
+      }
+      finish(res);
+    } catch (err) {
+      setErrorMsg(errorMessage(err, 'Google sign-in did not work. Try again, or use your email.'));
+      sounds.error();
     }
   };
 
@@ -53,7 +73,7 @@ export default function Login() {
     setErrorMsg('');
     setSubmitting(true);
     try {
-      finish(await verifyLogin(email, challenge.challengeId, code.trim(), remember));
+      finish(await verifyLogin(email.trim().toLowerCase(), challenge.challengeId, code, remember));
     } catch (err) {
       setErrorMsg(errorMessage(err, 'That code did not work. Check it and try again.'));
       setSubmitting(false);
@@ -68,7 +88,7 @@ export default function Login() {
   };
 
   const input =
-    'w-full h-12 rounded-xl border border-line bg-surface text-ink placeholder:text-mute pl-11 pr-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
+    'w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute pl-11 pr-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
 
   return (
     <AuthShell
@@ -79,7 +99,7 @@ export default function Login() {
           <p>New to 6.11 TruckOS?</p>
           <Link
             to="/create-account"
-            className="flex h-12 w-full items-center justify-center rounded-xl border-2 border-brand-green text-accent font-semibold hover:bg-brand-green/10 transition-colors"
+            className="flex h-12 w-full items-center justify-center rounded-lg border-2 border-brand-green text-accent font-semibold hover:bg-brand-green/10 transition-colors"
           >
             Create account
           </Link>
@@ -104,13 +124,12 @@ export default function Login() {
               id="login-code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
               required
               autoFocus
               placeholder="123456"
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              className="w-full h-12 rounded-xl border border-line bg-surface text-ink placeholder:text-mute px-4 text-center text-xl tracking-[0.4em] focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute px-4 text-center text-xl tracking-[0.4em] focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-mute">
@@ -120,7 +139,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting || code.length !== 6}
-            className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? (
               <>
@@ -136,48 +155,35 @@ export default function Login() {
         </form>
       )}
 
+      {!challenge && <GoogleButton onCredential={onGoogle} oneTap />}
+
       {!challenge && (
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label htmlFor="login-email" className="block text-sm font-medium mb-1.5">Email</label>
           <div className="relative">
             <Mail className="w-4 h-4 absolute left-4 top-4 text-mute" />
-            <input id="login-email" type="email" required autoComplete="username" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
+            <input id="login-email" type="email" required autoFocus autoComplete="username" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="login-password" className="block text-sm font-medium">Password</label>
-            <Link to="/forgot-password" className="text-xs font-semibold text-accent hover:underline">Forgot password?</Link>
-          </div>
-          <div className="relative">
-            <Lock className="w-4 h-4 absolute left-4 top-4 text-mute" />
-            <input
-              id="login-password"
-              type={show ? 'text' : 'password'}
-              required
-              autoComplete="current-password"
-              placeholder="Your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={`${input} pr-12`}
-            />
-            <button
-              type="button"
-              onClick={() => setShow(!show)}
-              aria-label={show ? 'Hide password' : 'Show password'}
-              className="absolute right-3 top-3 p-1 text-mute hover:text-ink"
-            >
-              {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
+        <PasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          show={show}
+          onToggle={() => setShow(!show)}
+          autoComplete="current-password"
+          placeholder="Your password"
+          eyes
+          right={<Link to="/forgot-password" className="text-xs font-semibold text-accent hover:underline">Forgot password?</Link>}
+        />
 
         <button
           type="submit"
           disabled={submitting}
-          className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <>

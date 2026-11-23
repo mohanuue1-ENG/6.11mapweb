@@ -8,7 +8,8 @@ import http from 'node:http';
 import { createApp } from '../src/app.js';
 import { attachRealtime } from '../src/realtime.js';
 
-export const randomPassword = () => crypto.randomBytes(12).toString('base64url');
+// Random, and always acceptable to the password rules (upper, lower, number, special character).
+export const randomPassword = () => `Aa1!${crypto.randomBytes(12).toString('base64url')}`;
 
 // A fresh in-memory PostgreSQL + app per test file.
 export async function createTestContext(overrides = {}, deps = {}) {

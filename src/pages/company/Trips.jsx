@@ -145,7 +145,7 @@ export default function Trips() {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setOpenId(t.id)} aria-label="View trip" title="View trip and route" className="p-1.5 rounded-lg border border-gray-300 dark:border-white/10 text-gray-500 hover:text-brand-green">
+                        <button onClick={() => setOpenId(t.id)} aria-label="View trip" title="View trip and route" className="hit p-2 rounded-lg border border-gray-300 dark:border-white/10 text-gray-500 hover:text-brand-green">
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
@@ -153,7 +153,7 @@ export default function Trips() {
                           disabled={deleting === t.id}
                           aria-label="Delete trip"
                           title={t.status === 'ACTIVE' ? 'End the trip before deleting it' : 'Delete trip'}
-                          className="p-1.5 rounded-lg border border-gray-300 dark:border-white/10 text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                          className="hit p-2 rounded-lg border border-gray-300 dark:border-white/10 text-red-500 hover:bg-red-500/10 disabled:opacity-50"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

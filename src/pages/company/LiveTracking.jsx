@@ -94,7 +94,7 @@ export default function LiveTracking() {
       {/* Top Banner */}
       <div
         className={`p-5 rounded-3xl border transition-all ${
-          theme === 'dark' ? 'bg-[#0B0F14] border-[#1F2937]' : 'bg-white border-gray-200 shadow-sm'
+          theme === 'dark' ? 'bg-dark-surface border-dark-card' : 'bg-white border-gray-200 shadow-sm'
         }`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -111,7 +111,7 @@ export default function LiveTracking() {
           <div className="flex items-center gap-3 text-xs">
             <div
               className={`px-3 py-1.5 rounded-xl border font-bold ${
-                theme === 'dark' ? 'bg-[#111827] border-[#1F2937] text-white' : 'bg-gray-100 border-gray-200 text-gray-800'
+                theme === 'dark' ? 'bg-dark-surface2 border-dark-card text-white' : 'bg-gray-100 border-gray-200 text-gray-800'
               }`}
             >
               <span className="text-[#22C55E]">{trucks.length}</span> {trucks.length === 1 ? "truck" : "trucks"}
@@ -155,10 +155,10 @@ export default function LiveTracking() {
                 selectedId={globeId}
                 route={trip?.route || []}
                 onSelect={selectTruck}
-                height="clamp(420px, 60vh, 620px)"
+                height="clamp(420px, 60dvh, 620px)"
               />
               {globeTruck && (
-                <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'bg-[#0B0F14] border-[#1F2937] text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'}`}>
+                <div className={`rounded-2xl border p-4 ${theme === 'dark' ? 'bg-dark-surface border-dark-card text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'}`}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-base">Truck #{globeTruck.truckNumber}</span>
                     <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#22C55E]/15 text-[#16A34A]">{globeTruck.trackingStatus}</span>
@@ -197,7 +197,7 @@ export default function LiveTracking() {
               selectedTruckId={selectedTruckId}
               focus={focus}
               onSelectTruck={(truck) => setSelectedTruckId(truck.id)}
-              height="clamp(440px, 72vh, 720px)"
+              height="clamp(440px, 72dvh, 720px)"
             />
           )}
         </div>
@@ -207,7 +207,7 @@ export default function LiveTracking() {
           {/* Search & Filter Header */}
           <div
             className={`p-3.5 rounded-2xl border space-y-2.5 ${
-              theme === 'dark' ? 'bg-[#0B0F14] border-[#1F2937]' : 'bg-white border-gray-200 shadow-sm'
+              theme === 'dark' ? 'bg-dark-surface border-dark-card' : 'bg-white border-gray-200 shadow-sm'
             }`}
           >
             <div className="relative">
@@ -219,7 +219,7 @@ export default function LiveTracking() {
                 onChange={(e) => setFilterQuery(e.target.value)}
                 className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-[#22C55E] ${
                   theme === 'dark'
-                    ? 'bg-[#111827] border-[#1F2937] text-white placeholder-[#9CA3AF]'
+                    ? 'bg-dark-surface2 border-dark-card text-white placeholder-[#9CA3AF]'
                     : 'bg-gray-100 border-gray-200 text-gray-900 placeholder-gray-500'
                 }`}
               />
@@ -236,7 +236,7 @@ export default function LiveTracking() {
                         ? 'bg-[#EF4444] text-white'
                         : 'bg-[#22C55E] text-black font-extrabold'
                       : theme === 'dark'
-                      ? 'bg-[#111827] text-[#9CA3AF] hover:text-white'
+                      ? 'bg-dark-surface2 text-[#9CA3AF] hover:text-white'
                       : 'bg-gray-100 text-gray-600 hover:text-black'
                   }`}
                 >
@@ -257,9 +257,9 @@ export default function LiveTracking() {
                   onClick={() => selectTruck(truck)}
                   className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
                     isSelected
-                      ? 'border-[#22C55E] bg-[#22C55E]/15 shadow-lg shadow-[#22C55E]/10'
+                      ? 'border-[#22C55E] bg-[#22C55E]/15'
                       : theme === 'dark'
-                      ? 'bg-[#0B0F14] border-[#1F2937] hover:border-gray-700'
+                      ? 'bg-dark-surface border-dark-card hover:border-gray-700'
                       : 'bg-white border-gray-200 hover:border-gray-300'
                   }`}
                 >

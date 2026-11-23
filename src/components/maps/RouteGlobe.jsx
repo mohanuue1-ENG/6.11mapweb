@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { drawGlobe } from './globeStyle';
+import { useTheme } from '../../context/ThemeContext';
 import { geoOrthographic, geoPath, geoGraticule, geoDistance } from 'd3-geo';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
@@ -12,6 +14,9 @@ const sphere = { type: 'Sphere' };
 // `route` is a list of { latitude, longitude } in driving order. Drag to turn the globe.
 export default function RouteGlobe({ route = [], height = '420px' }) {
   const canvasRef = useRef(null);
+  const { isDark } = useTheme();
+  const nightRef = useRef(isDark);
+  nightRef.current = isDark;
   const state = useRef({ rotation: [100, -20, 0], scale: 260, target: null, drag: null, pulse: 0 });
   const coords = useMemo(
     () => route.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)).map((p) => [p.longitude, p.latitude]),
@@ -77,28 +82,7 @@ export default function RouteGlobe({ route = [], height = '420px' }) {
       proj.rotate(s.rotation).scale(s.scale);
       s.pulse = (s.pulse + 0.02) % 1;
 
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      ctx.beginPath();
-      path(sphere);
-      ctx.fillStyle = '#10233f';
-      ctx.fill();
-      ctx.beginPath();
-      path(graticule);
-      ctx.strokeStyle = 'rgba(148,163,184,0.14)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.beginPath();
-      path(land);
-      ctx.fillStyle = '#2f6f4f';
-      ctx.fill();
-      ctx.strokeStyle = '#4ade80';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.beginPath();
-      path(sphere);
-      ctx.strokeStyle = 'rgba(96,165,250,0.6)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      drawGlobe(ctx, proj, { size: SIZE, night: nightRef.current, land, graticule, sphere });
 
       const pts = coordsRef.current;
       if (pts.length > 1) {
@@ -160,13 +144,13 @@ export default function RouteGlobe({ route = [], height = '420px' }) {
   }, []);
 
   return (
-    <div className="rounded-2xl bg-[#0B1220] flex items-center justify-center overflow-hidden" style={{ height }}>
+    <div className="flex items-center justify-center overflow-hidden" style={{ height: `min(${height}, 100vw)` }}>
       <canvas
         ref={canvasRef}
         width={SIZE}
         height={SIZE}
         className="cursor-grab active:cursor-grabbing"
-        style={{ height: '100%', maxWidth: '100%', aspectRatio: '1 / 1', touchAction: 'none' }}
+        style={{ width: '100%', maxWidth: height, height: 'auto', aspectRatio: '1 / 1', touchAction: 'none' }}
         aria-label="Globe showing the stored route. Drag to turn it."
       />
     </div>

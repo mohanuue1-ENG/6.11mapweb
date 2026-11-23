@@ -36,7 +36,7 @@ export default function MockCheckout() {
   return (
     <AuthShell title="Test payment" subtitle="Development only. No money is taken.">
       <div className="space-y-5 text-sm">
-        <div className="flex items-start gap-3 p-4 rounded-2xl border border-status-amber/40 bg-status-amber/10">
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-status-amber/40 bg-status-amber/10">
           <FlaskConical className="w-5 h-5 mt-0.5 shrink-0" />
           <p>This stands in for the card page. With a Stripe key configured, customers pay on Stripe’s own page instead.</p>
         </div>
@@ -47,11 +47,11 @@ export default function MockCheckout() {
         )}
         {info && (
           <>
-            <div className="p-4 rounded-2xl border border-line bg-surface flex items-center justify-between">
+            <div className="p-4 rounded-xl border border-line bg-surface flex items-center justify-between">
               <span className="font-bold">{info.planName}</span>
               <span className="font-extrabold">{money(info.amountCents)} <span className="text-xs text-mute font-medium">/ month</span></span>
             </div>
-            <button onClick={pay} disabled={paying} className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            <button onClick={pay} disabled={paying} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
               {paying ? (<><Loader2 className="w-4 h-4 animate-spin" /> Paying…</>) : 'Pay (test)'}
             </button>
             <Link to="/join?canceled=1" className="block text-center text-mute hover:text-ink">Cancel</Link>

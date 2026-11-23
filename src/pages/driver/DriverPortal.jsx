@@ -11,7 +11,7 @@ export default function DriverPortal() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <div className="flex items-center justify-between h-16">
         <Brand />
         <ThemeToggle />

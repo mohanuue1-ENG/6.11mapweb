@@ -295,7 +295,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
 
   return (
     <div className={`relative isolate rounded-3xl overflow-hidden border shadow-2xl transition-colors ${
-      isDark ? 'border-white/10 bg-[#080B10]' : 'border-gray-200 bg-gray-100'
+      isDark ? 'border-white/10 bg-dark-bg' : 'border-gray-200 bg-gray-100'
     }`} style={{ height }}>
       {/* Top Map Controls Overlay (isolated within map container) */}
       <div className="absolute top-3 left-3 right-3 z-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pointer-events-none">
@@ -314,7 +314,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`text-xs rounded-xl pl-8 pr-2.5 py-1.5 border focus:outline-none focus:border-brand-green w-full sm:w-40 transition-colors ${
                 isDark
-                  ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500'
+                  ? 'bg-dark-surface2 border-white/10 text-white placeholder-gray-500'
                   : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
               }`}
             />
@@ -358,22 +358,16 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
             <span className={`w-1.5 h-1.5 rounded-full bg-current ${liveStatus === 'live' ? 'animate-pulse' : ''}`} />
             {liveStatus === 'live' ? 'Live' : liveStatus === 'offline' ? 'Not connected' : 'Reconnecting'}
           </span>
-          {MAP_STYLES.map((st) => (
-            <button
-              key={st.id}
-              onClick={() => switchTiles(st.id)}
-              aria-pressed={mapType === st.id}
-              className={`px-2.5 py-1 text-xs rounded-xl font-bold transition-colors ${
-                mapType === st.id
-                  ? 'bg-[#22C55E] text-black'
-                  : isDark
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              {st.label}
-            </button>
-          ))}
+          <select
+            aria-label="Map look"
+            value={mapType}
+            onChange={(e) => switchTiles(e.target.value)}
+            className={`h-8 text-xs rounded-xl px-2 border font-semibold focus:outline-none ${isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-800'}`}
+          >
+            {MAP_STYLES.map((st) => (
+              <option key={st.id} value={st.id}>{st.label}</option>
+            ))}
+          </select>
 
           <button
             onClick={fitAllTrucks}
@@ -494,7 +488,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
           <div className={`mt-3 pt-2.5 border-t flex gap-2 ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
             <button
               onClick={() => centerOnTruck(activeTruck)}
-              className="flex-1 py-2 bg-brand-green text-black font-extrabold text-xs rounded-xl hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-brand-green/20"
+              className="flex-1 py-2 bg-brand-green text-black font-extrabold text-xs rounded-xl hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-1.5"
             >
               <Navigation className="w-3.5 h-3.5" /> {followId === activeTruck.id ? 'Following (tap to stop)' : 'Follow Truck'}
             </button>

@@ -92,7 +92,7 @@ test('paying through the (mock) checkout creates the company, an active plan and
   assert.ok(ctx.mail.some((m) => m.to === 'owner@example.test' && m.subject.includes('Paying Freight')));
 
   // They choose a password, sign in, and see their own dashboard data.
-  const pw = `Pw-${crypto.randomBytes(8).toString('base64url')}`;
+  const pw = `Aa1!${crypto.randomBytes(8).toString("base64url")}`;
   assert.equal((await ctx.api().post(`${V1}/auth/set-password`).send({ token: token(invite.text), password: pw })).status, 204);
   const login = await ctx.api().post(`${V1}/auth/login`).send({ email: body.email, password: pw });
   assert.equal(login.status, 200);

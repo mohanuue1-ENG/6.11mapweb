@@ -48,22 +48,23 @@ import SuperAdminAuditLogs from './pages/superadmin/SuperAdminAuditLogs';
 import DriverPortal from './pages/driver/DriverPortal';
 
 function PublicLayout({ children }) {
+  const { pathname } = useLocation();
   return (
-    <div className="flex flex-col min-h-screen bg-app text-ink">
+    <div className="flex flex-col min-h-dvh bg-app text-ink">
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main key={pathname} className="flex-1 anim-rise">{children}</main>
       <Footer />
     </div>
   );
 }
 
 function DriverLayout({ children }) {
-  return <div className="min-h-screen bg-app text-ink px-3">{children}</div>;
+  return <div className="min-h-dvh bg-app text-ink px-3">{children}</div>;
 }
 
 function SessionLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center text-xs text-gray-500" role="status">
+    <div className="min-h-dvh flex items-center justify-center text-xs text-gray-500" role="status">
       Loading…
     </div>
   );

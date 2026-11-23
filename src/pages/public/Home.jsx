@@ -1,8 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BarChart3, ChevronDown, Clock, MapPin, Route as RouteIcon, ShieldCheck, Smartphone } from 'lucide-react';
-import Photo from '../../components/common/Photo';
-import RouteIllustration from '../../components/common/RouteIllustration';
 
 // Still used by the Features page.
 export const FEATURES = [
@@ -38,47 +36,41 @@ const FAQ = [
   { q: 'How much does it cost?', a: 'Plans are monthly and depend on the number of trucks. See the Pricing page.' },
 ];
 
+const btn = 'h-12 px-6 inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors';
+const btnPrimary = `${btn} nudge bg-brand-green text-[#052E16] hover:bg-brand-green-hover`;
+const btnPlain = `${btn} border border-line bg-surface text-ink hover:border-brand-green`;
+
 export default function Home() {
   return (
     <>
+      {/* Hero: one giant line, one centred paragraph, two buttons */}
       <section className="border-b border-line">
-        <div className={`${wrap} pt-12 pb-16 lg:pt-20 lg:pb-24 grid lg:grid-cols-2 gap-12 items-center`}>
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-line bg-surface text-xs font-semibold text-mute">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-green" /> GPS fleet tracking for trucking companies
-            </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05]">
-              Stop calling drivers to ask <span className="text-accent">where they are.</span>
-            </h1>
-            <p className="text-lg text-mute max-w-xl leading-relaxed">
-              Know where every truck is, and what every trip looked like, from the phone your driver already has. No hardware to buy or install.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-2xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover hover:-translate-y-px transition-all duration-200 shadow-lg shadow-brand-green/20">
-                Create account <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link to="/pricing" className="h-12 px-6 inline-flex items-center rounded-2xl border border-line bg-surface font-semibold hover:border-brand-green transition-colors">
-                View pricing
-              </Link>
-            </div>
+        <div className={`${wrap} py-20 lg:py-28 text-center stagger`}>
+          <h1 className="mx-auto max-w-4xl text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.05]">
+            Stop calling drivers to ask <span className="text-accent">where they are.</span>
+          </h1>
+          <p className="mx-auto max-w-2xl mt-6 text-lg sm:text-xl text-mute leading-relaxed">
+            Know where every truck is, and what every trip looked like, from the phone your driver already has. No hardware to buy or install.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mt-9">
+            <Link to="/create-account" className={btnPrimary}>
+              Create account <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link to="/pricing" className={btnPlain}>
+              View pricing
+            </Link>
           </div>
-          <Photo name="hero" alt="A truck on the road" className="w-full aspect-[4/3] object-cover rounded-3xl shadow-xl">
-            <RouteIllustration className="w-full h-auto drop-shadow-xl" />
-          </Photo>
         </div>
       </section>
 
       <section className={`${wrap} py-16 lg:py-20`}>
         <div className="max-w-2xl mb-10 space-y-2">
           <h2 className="text-3xl font-extrabold tracking-tight">Less worry. More control.</h2>
-          <p className="text-mute">From your office to the open road, your whole fleet in one clear view.</p>
+          <p className="text-mute">Your whole fleet in one clear view.</p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {BENEFITS.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="p-6 rounded-3xl border border-line bg-surface hover:border-brand-green/60 hover:-translate-y-0.5 transition-all duration-200">
-              <span className="w-11 h-11 rounded-2xl bg-brand-green/15 text-accent inline-flex items-center justify-center mb-4">
-                <Icon className="w-5 h-5" />
-              </span>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {BENEFITS.map(({ title, text }) => (
+            <div key={title} className="pt-4 border-t-2 border-brand-green">
               <h3 className="font-bold mb-1.5">{title}</h3>
               <p className="text-sm text-mute leading-relaxed">{text}</p>
             </div>
@@ -87,21 +79,19 @@ export default function Home() {
       </section>
 
       <section className={`${wrap} pb-16 lg:pb-20`}>
-        <div className="relative overflow-hidden rounded-3xl bg-[#080B10] text-white min-h-[280px] flex items-center">
-          <Photo name="fleet" alt="" className="absolute inset-0 w-full h-full object-cover opacity-60">
-            <div aria-hidden="true" className="absolute -top-24 -right-16 w-96 h-96 rounded-full bg-brand-green/25 blur-3xl" />
-          </Photo>
-          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-[#080B10] via-[#080B10]/70 to-transparent" />
-          <div className="relative p-8 sm:p-12 max-w-xl space-y-4">
+        <div className="rounded-xl bg-dark-surface2 text-white p-8 sm:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="max-w-xl space-y-3">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight">
               Built for the people who keep freight moving<span className="text-brand-green">.</span>
             </h2>
-            <p className="text-gray-300">Less chasing, more driving. Give your office and your drivers one simple way to stay in step.</p>
-            <Link to="/create-account" className="h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-brand-green text-[#052E16] text-sm font-semibold hover:bg-brand-green-hover transition-colors">
+            <p className="text-gray-300">Less chasing, more driving. One simple way for your office and your drivers to stay in step.</p>
+          </div>
+          <div className="flex flex-wrap gap-3 shrink-0">
+            <Link to="/create-account" className={btnPrimary}>
               Create account <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link to="/download" className="ml-3 h-11 px-5 inline-flex items-center gap-2 rounded-xl border border-white/30 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
-              <Smartphone className="w-4 h-4" /> Get the driver app
+            <Link to="/download" className={`${btn} border border-white/30 text-white hover:bg-white/10`}>
+              Get the driver app
             </Link>
           </div>
         </div>
@@ -113,7 +103,7 @@ export default function Home() {
           <ol className="grid md:grid-cols-3 gap-8">
             {STEPS.map((s, i) => (
               <li key={s.title} className="flex gap-4">
-                <span className="w-9 h-9 rounded-full bg-brand-green text-[#052E16] font-bold inline-flex items-center justify-center shrink-0">{i + 1}</span>
+                <span className="w-9 h-9 rounded-lg bg-brand-green text-[#052E16] font-bold inline-flex items-center justify-center shrink-0">{i + 1}</span>
                 <div>
                   <h3 className="font-bold">{s.title}</h3>
                   <p className="text-sm text-mute mt-1 leading-relaxed">{s.text}</p>
@@ -128,10 +118,10 @@ export default function Home() {
         <h2 className="text-3xl font-extrabold tracking-tight mb-8">Questions</h2>
         <div className="space-y-3">
           {FAQ.map((f) => (
-            <details key={f.q} className="group rounded-2xl border border-line bg-surface px-5 py-4">
+            <details key={f.q} className="group rounded-xl border border-line bg-surface px-5 py-4">
               <summary className="flex items-center justify-between gap-4 cursor-pointer list-none font-semibold">
                 {f.q}
-                <ChevronDown className="w-4 h-4 text-mute shrink-0 transition-transform duration-200 group-open:rotate-180" />
+                <ChevronDown className="w-4 h-4 text-mute shrink-0 group-open:rotate-180" />
               </summary>
               <p className="text-sm text-mute leading-relaxed mt-3">{f.a}</p>
             </details>
@@ -142,7 +132,7 @@ export default function Home() {
       <section className="border-t border-line bg-surface">
         <div className={`${wrap} py-16 text-center space-y-5`}>
           <h2 className="text-3xl font-extrabold tracking-tight">Ready to see your whole fleet?</h2>
-          <Link to="/create-account" className="h-12 px-8 inline-flex items-center gap-2 rounded-2xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover hover:-translate-y-px transition-all duration-200">
+          <Link to="/create-account" className={btnPrimary}>
             Create account <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

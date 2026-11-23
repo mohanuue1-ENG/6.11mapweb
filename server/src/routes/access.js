@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { asyncHandler, parse, badRequest, conflict, HttpError } from '../errors.js';
 import bcrypt from 'bcryptjs';
-import { email, password, requiredText, nullableText, uuid } from '../validation.js';
+import { email, strongPassword, requiredText, nullableText, uuid } from '../validation.js';
 import { audit } from '../services/audit.js';
 
 const requestSchema = z
@@ -16,7 +16,7 @@ const requestSchema = z
     address: nullableText(500),
     message: nullableText(1000),
     // Chosen on the "Create account" step. Never stored as typed: only its bcrypt hash is kept.
-    password: password.optional(),
+    password: strongPassword.optional(),
     // With a plan the company pays online and its account is created when the payment is confirmed.
     // Without one this is a plain request that the platform admin reviews.
     planId: uuid.optional(),

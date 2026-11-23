@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useGps } from '../../context/GpsContext';
 import { useTheme } from '../../context/ThemeContext';
 import { errorMessage } from '../../services/api';
 import { ErrorBanner, Field, Modal, primaryButton, useFieldClass } from '../../components/common/ui';
-import { COUNTRIES, flag, joinPhone, splitPhone } from '../../data/countries';
+import { COUNTRIES, joinPhone, splitPhone } from '../../data/countries';
 import {
   Users,
   PlusCircle,
@@ -48,6 +49,16 @@ export default function Drivers() {
     setFormError('');
     setModalOpen(true);
   };
+
+  // The dashboard's "Add" buttons come here with ?add=1: open the form straight away, then tidy the address.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      openAddModal();
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openEditModal = (driver) => {
     setEditingDriver(driver);
@@ -121,7 +132,7 @@ export default function Drivers() {
   // One table of drivers. Active and inactive drivers are shown apart.
   const driverTable = (list, emptyText) => (
       <div className={`rounded-3xl border overflow-hidden shadow-xl transition-colors ${
-        isDark ? 'border-white/10 bg-[#0B0F14] text-white' : 'border-gray-200 bg-white text-[#111827]'
+        isDark ? 'border-white/10 bg-dark-surface text-white' : 'border-gray-200 bg-white text-[#111827]'
       }`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -204,14 +215,14 @@ export default function Drivers() {
                         <button
                           onClick={() => openEditModal(driver)}
                           title="Edit Driver"
-                          className="p-1.5 rounded-lg border border-dark-border text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-dark-card transition-colors"
+                          className="hit p-2 rounded-lg border border-dark-border text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-dark-card transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => toggleDriverStatus(driver)}
                           title={driver.status === 'active' ? 'Deactivate Driver' : 'Activate Driver'}
-                          className={`p-1.5 rounded-lg border border-dark-border transition-colors ${
+                          className={`hit p-2 rounded-lg border border-dark-border transition-colors ${
                             driver.status === 'active'
                               ? 'text-amber-400 hover:bg-amber-500/10'
                               : 'text-brand-green hover:bg-brand-green/10'
@@ -222,7 +233,7 @@ export default function Drivers() {
                         <button
                           onClick={() => handleDelete(driver)}
                           title="Delete Driver"
-                          className="p-1.5 rounded-lg border border-dark-border text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="hit p-2 rounded-lg border border-dark-border text-red-400 hover:bg-red-500/10 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -241,7 +252,7 @@ export default function Drivers() {
     <div className="space-y-6 pb-12 font-sans">
       {/* Top Banner */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl border transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
+        isDark ? 'bg-dark-surface border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
       }`}>
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2">
@@ -255,7 +266,7 @@ export default function Drivers() {
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20"
+          className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2"
         >
           <PlusCircle className="w-4 h-4" /> Add New Driver
         </button>
@@ -270,7 +281,7 @@ export default function Drivers() {
 
       {/* Search Bar */}
       <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10' : 'bg-white border-gray-200 shadow-sm'
+        isDark ? 'bg-dark-surface border-white/10' : 'bg-white border-gray-200 shadow-sm'
       }`}>
         <div className="relative flex-1 max-w-md">
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
@@ -281,7 +292,7 @@ export default function Drivers() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
               isDark
-                ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500'
+                ? 'bg-dark-surface2 border-white/10 text-white placeholder-gray-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
             }`}
           />
@@ -318,14 +329,14 @@ export default function Drivers() {
             <Field label='Phone number *'>
               <div className='flex gap-2'>
                 <select
-                  aria-label='Country code'
+                  aria-label='Country code' title='Country code'
                   className={`${field} !w-auto max-w-[46%] shrink-0`}
                   value={formData.phoneDial}
                   onChange={(e) => setFormData({ ...formData, phoneDial: e.target.value })}
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c.code} value={c.dial}>
-                      {flag(c.code)} {c.name} (+{c.dial})
+                      {c.code} +{c.dial}
                     </option>
                   ))}
                 </select>

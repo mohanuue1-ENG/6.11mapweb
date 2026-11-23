@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Truck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { api } from '../../services/api';
 import { money } from '../../services/format';
 import { wrap } from './Home';
@@ -27,7 +27,7 @@ export default function Pricing() {
       {failed && <p className="text-sm text-status-red">Plans could not be loaded. Please try again shortly.</p>}
 
       {plans && plans.length === 0 && (
-        <div className="max-w-xl p-8 rounded-3xl border border-line bg-surface space-y-3">
+        <div className="max-w-xl p-8 rounded-xl border border-line bg-surface space-y-3">
           <p className="text-mute">Pricing will be published here soon. Create an account to get started.</p>
           <Link to="/create-account" className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
             Create account <ArrowRight className="w-4 h-4" />
@@ -38,7 +38,7 @@ export default function Pricing() {
       {plans && plans.length > 0 && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((p) => (
-            <div key={p.id} className="p-7 rounded-3xl border border-line bg-surface flex flex-col justify-between gap-6">
+            <div key={p.id} className="p-7 rounded-xl border border-line bg-surface flex flex-col justify-between gap-6">
               <div className="space-y-3">
                 <h2 className="text-lg font-bold">{p.name}</h2>
                 {p.description && <p className="text-sm text-mute">{p.description}</p>}
@@ -47,12 +47,12 @@ export default function Pricing() {
                   <span className="text-sm text-mute"> / month</span>
                 </div>
                 <ul className="text-sm space-y-2 pt-1">
-                  <li className="flex items-center gap-2"><Truck className="w-4 h-4 text-accent" /> {p.truckLimit == null ? 'Unlimited trucks' : `Up to ${p.truckLimit} trucks`}</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-accent" /> Live tracking, trips and reports</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-accent" /> Driver mobile app</li>
+                  <li className="flex items-center gap-2"><span className="text-accent">&bull;</span> {p.truckLimit == null ? 'Unlimited trucks' : `Up to ${p.truckLimit} trucks`}</li>
+                  <li className="flex items-center gap-2"><span className="text-accent">&bull;</span> Live tracking, trips and reports</li>
+                  <li className="flex items-center gap-2"><span className="text-accent">&bull;</span> Driver mobile app</li>
                 </ul>
               </div>
-              <Link to="/create-account" className="h-11 rounded-xl bg-brand-green text-[#052E16] text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-brand-green-hover transition-colors">
+              <Link to="/create-account" className="h-11 rounded-lg bg-brand-green text-[#052E16] text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-brand-green-hover transition-colors">
                 Create account to join <ArrowRight className="w-4 h-4" />
               </Link>
             </div>

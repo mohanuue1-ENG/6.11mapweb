@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { drawGlobe } from './globeStyle';
+import { useTheme } from '../../context/ThemeContext';
 import { geoOrthographic, geoPath, geoGraticule, geoDistance } from 'd3-geo';
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-110m.json';
@@ -8,7 +10,7 @@ const WORLD_SCALE = 300;
 const land = feature(landTopo, landTopo.objects.land);
 const graticule = geoGraticule().step([10, 10])();
 const sphere = { type: 'Sphere' };
-const COLORS = { moving: '#22C55E', stopped: '#EF9F27', offline: '#94A3B8' };
+const COLORS = { moving: '#22C55E', stopped: '#F59E0B', offline: '#94A3B8' };
 const colorOf = (t) => COLORS[t.trackingStatus] || COLORS.offline;
 
 // The Live Tracking globe. With no truck chosen it turns slowly and shows every truck. Click a truck (on the
@@ -16,6 +18,9 @@ const colorOf = (t) => COLORS[t.trackingStatus] || COLORS.offline;
 // to where it is now. Drag to turn the globe.
 export default function FleetGlobe({ trucks = [], selectedId = null, route = [], onSelect, height = '640px' }) {
   const canvasRef = useRef(null);
+  const { isDark } = useTheme();
+  const nightRef = useRef(isDark);
+  nightRef.current = isDark;
   const state = useRef({ rotation: [100, -20, 0], scale: WORLD_SCALE, target: null, drag: null, pulse: 0 });
   const located = useMemo(() => trucks.filter((t) => Number.isFinite(t.currentLat) && Number.isFinite(t.currentLng)), [trucks]);
   const live = useRef({ located, selectedId, route: [], onSelect });
@@ -111,28 +116,7 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
       proj.rotate(s.rotation).scale(s.scale);
       s.pulse = (s.pulse + 0.02) % 1;
 
-      ctx.clearRect(0, 0, SIZE, SIZE);
-      ctx.beginPath();
-      path(sphere);
-      ctx.fillStyle = '#10233f';
-      ctx.fill();
-      ctx.beginPath();
-      path(graticule);
-      ctx.strokeStyle = 'rgba(148,163,184,0.14)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.beginPath();
-      path(land);
-      ctx.fillStyle = '#2f6f4f';
-      ctx.fill();
-      ctx.strokeStyle = '#4ade80';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-      ctx.beginPath();
-      path(sphere);
-      ctx.strokeStyle = 'rgba(96,165,250,0.6)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      drawGlobe(ctx, proj, { size: SIZE, night: nightRef.current, land, graticule, sphere });
 
       const centre = [-s.rotation[0], -s.rotation[1]];
       // The trip line of the chosen truck, from the start to now.
@@ -203,13 +187,13 @@ export default function FleetGlobe({ trucks = [], selectedId = null, route = [],
   }, []);
 
   return (
-    <div className="rounded-3xl bg-[#0B1220] flex items-center justify-center overflow-hidden relative" style={{ height }}>
+    <div className="flex items-center justify-center overflow-hidden relative" style={{ height: `min(${height}, 100vw)` }}>
       <canvas
         ref={canvasRef}
         width={SIZE}
         height={SIZE}
         className="cursor-grab active:cursor-grabbing"
-        style={{ height: '100%', maxWidth: '100%', aspectRatio: '1 / 1', touchAction: 'none' }}
+        style={{ width: '100%', maxWidth: height, height: 'auto', aspectRatio: '1 / 1', touchAction: 'none' }}
         aria-label="Globe with the live trucks. Press a truck to see its trip. Drag to turn the globe."
       />
     </div>

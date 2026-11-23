@@ -41,7 +41,7 @@ export default function SignupComplete() {
     return (
       <AuthShell title="Payment confirmed">
         <div className="space-y-5 text-sm">
-          <div className="flex items-start gap-3 p-4 rounded-2xl border border-brand-green/40 bg-brand-green/10">
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-green/40 bg-brand-green/10">
             <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 shrink-0" />
             <p>
               Thank you. Your company is ready.{' '}
@@ -53,11 +53,11 @@ export default function SignupComplete() {
             </p>
           </div>
           {devLink && !passwordChosen && (
-            <a href={devLink} className="flex h-12 w-full items-center justify-center rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
+            <a href={devLink} className="flex h-12 w-full items-center justify-center rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
               Choose your password (development: no email is configured)
             </a>
           )}
-          <Link to="/login" className={passwordChosen ? 'flex h-12 w-full items-center justify-center rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors' : 'inline-flex h-11 items-center px-5 rounded-xl border border-line font-semibold hover:border-brand-green transition-colors'}>{passwordChosen ? 'Sign in' : 'Go to sign in'}</Link>
+          <Link to="/login" className={passwordChosen ? 'flex h-12 w-full items-center justify-center rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors' : 'inline-flex h-11 items-center px-5 rounded-lg border border-line font-semibold hover:border-brand-green transition-colors'}>{passwordChosen ? 'Sign in' : 'Go to sign in'}</Link>
         </div>
       </AuthShell>
     );
@@ -75,7 +75,7 @@ export default function SignupComplete() {
     <AuthShell title="We could not find this payment">
       <div className="space-y-4 text-sm text-mute">
         <p>If you paid, your account will still be created and you will receive an email. Otherwise you can start again.</p>
-        <Link to="/create-account" className="inline-flex h-11 items-center px-5 rounded-xl border border-line text-ink font-semibold hover:border-brand-green transition-colors">Start again</Link>
+        <Link to="/create-account" className="inline-flex h-11 items-center px-5 rounded-lg border border-line text-ink font-semibold hover:border-brand-green transition-colors">Start again</Link>
       </div>
     </AuthShell>
   );

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { api, errorMessage, setAccessToken } from '../../services/api';
 import { ErrorBanner, Field, Modal, primaryButton, useFieldClass } from './ui';
+import PasswordCreate from './PasswordCreate';
+import { assess } from '../../utils/passwordPolicy';
 
 // A signed-in user changes their own password. The server closes their other sessions and
 // answers with a fresh token for this one, which is stored so nothing else is interrupted.
@@ -18,7 +20,8 @@ export default function ChangePasswordModal({ onClose }) {
     e.preventDefault();
     if (saving) return;
     setError('');
-    if (next.length < 8) return setError('The new password must be at least 8 characters.');
+    const verdict = assess(next);
+    if (!verdict.ok) return setError(verdict.label ? `${verdict.label}. ${verdict.message}` : verdict.message);
     if (next !== repeat) return setError('The two new passwords do not match.');
     if (next === current) return setError('Choose a password different from the current one.');
     setSaving(true);
@@ -47,8 +50,7 @@ export default function ChangePasswordModal({ onClose }) {
         <form onSubmit={save} className="space-y-3">
           <ErrorBanner message={error} />
           <Field label="Current password"><input type="password" required autoComplete="current-password" className={field} value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
-          <Field label="New password (at least 8 characters)"><input type="password" required minLength={8} autoComplete="new-password" className={field} value={next} onChange={(e) => setNext(e.target.value)} /></Field>
-          <Field label="Repeat new password"><input type="password" required autoComplete="new-password" className={field} value={repeat} onChange={(e) => setRepeat(e.target.value)} /></Field>
+          <PasswordCreate password={next} setPassword={setNext} confirm={repeat} setConfirm={setRepeat} label="New password" />
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-xs rounded-xl border border-line text-mute hover:text-ink">Cancel</button>
             <button type="submit" disabled={saving} className={primaryButton}>{saving ? 'Saving…' : 'Change password'}</button>

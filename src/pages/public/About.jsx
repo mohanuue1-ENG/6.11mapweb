@@ -20,13 +20,13 @@ export default function About() {
       </div>
       <div className="grid md:grid-cols-3 gap-5">
         {PRINCIPLES.map((p) => (
-          <div key={p.title} className="p-6 rounded-3xl border border-line bg-surface">
+          <div key={p.title} className="p-6 rounded-xl border border-line bg-surface">
             <h2 className="font-bold mb-2">{p.title}</h2>
             <p className="text-sm text-mute leading-relaxed">{p.text}</p>
           </div>
         ))}
       </div>
-      <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-2xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
+      <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
         Create account <ArrowRight className="w-4 h-4" />
       </Link>
     </div>

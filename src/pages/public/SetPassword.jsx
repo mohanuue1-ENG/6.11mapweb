@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import PasswordCreate from '../../components/common/PasswordCreate';
+import { assess } from '../../utils/passwordPolicy';
+import { sounds } from '../../utils/sound';
 import { api, errorMessage } from '../../services/api';
 import AuthShell from '../../components/layout/AuthShell';
 
 const input =
-  'w-full h-12 rounded-xl border border-line bg-surface text-ink placeholder:text-mute px-4 pr-12 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
+  'w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute px-4 pr-12 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
 
 // Opened from the invitation email: the administrator chooses their own password.
 export default function SetPassword() {
@@ -15,7 +18,6 @@ export default function SetPassword() {
   const isReset = params.get('type') === 'reset';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [show, setShow] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -24,8 +26,15 @@ export default function SetPassword() {
     e.preventDefault();
     if (submitting) return;
     setErrorMsg('');
-    if (password.length < 8) return setErrorMsg('Password must be at least 8 characters.');
-    if (password !== confirm) return setErrorMsg('The two passwords do not match.');
+    const verdict = assess(password);
+    if (!verdict.ok) {
+      sounds.error();
+      return setErrorMsg(verdict.label ? `${verdict.label}. ${verdict.message}` : verdict.message);
+    }
+    if (password !== confirm) {
+      sounds.error();
+      return setErrorMsg('The two passwords do not match.');
+    }
     setSubmitting(true);
     try {
       await api('/auth/set-password', { method: 'POST', auth: false, body: { token, password } });
@@ -49,11 +58,11 @@ export default function SetPassword() {
     return (
       <AuthShell title="Password set">
         <div className="space-y-5 text-sm">
-          <div className="flex items-start gap-3 p-4 rounded-2xl border border-brand-green/40 bg-brand-green/10">
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-green/40 bg-brand-green/10">
             <CheckCircle2 className="w-5 h-5 text-accent mt-0.5 shrink-0" />
             <p>Your password is saved. You can sign in now.</p>
           </div>
-          <button onClick={() => navigate('/login', { replace: true })} className="h-12 w-full rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
+          <button onClick={() => navigate('/login', { replace: true })} className="h-12 w-full rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
             Go to sign in
           </button>
         </div>
@@ -73,20 +82,8 @@ export default function SetPassword() {
         </div>
       )}
       <form onSubmit={submit} className="space-y-5">
-        <div>
-          <label htmlFor="sp-password" className="block text-sm font-medium mb-1.5">New password <span className="text-mute font-normal">(at least 8 characters)</span></label>
-          <div className="relative">
-            <input id="sp-password" type={show ? 'text' : 'password'} required minLength={8} autoComplete="new-password" className={input} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} className="absolute right-3 top-3 p-1 text-mute hover:text-ink">
-              {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-        <div>
-          <label htmlFor="sp-confirm" className="block text-sm font-medium mb-1.5">Repeat password</label>
-          <input id="sp-confirm" type={show ? 'text' : 'password'} required autoComplete="new-password" className={input} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        </div>
-        <button type="submit" disabled={submitting} className="w-full h-12 rounded-xl bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 shadow-lg shadow-brand-green/20 disabled:opacity-60">
+        <PasswordCreate password={password} setPassword={setPassword} confirm={confirm} setConfirm={setConfirm} label="New password" autoFocus />
+        <button type="submit" disabled={submitting} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
           {submitting ? (<><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>) : 'Save password'}
         </button>
       </form>

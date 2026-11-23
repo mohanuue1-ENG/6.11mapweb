@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { asyncHandler, parse, notFound, conflict, HttpError } from '../errors.js';
 import { requireRole } from '../middleware/auth.js';
-import { uuid, email, password, requiredText, nullableText, buildUpdate } from '../validation.js';
+import { uuid, email, strongPassword, requiredText, nullableText, buildUpdate } from '../validation.js';
 import { audit } from '../services/audit.js';
 import { toPlan, toSubscription, SUBSCRIPTION_SELECT } from './billing.js';
 
@@ -42,7 +42,7 @@ const createCompanySchema = z
     companyName: requiredText(200),
     adminName: requiredText(200),
     email,
-    password,
+    password: strongPassword,
     phone: nullableText(40),
     dotNumber: nullableText(40),
     mcNumber: nullableText(40),

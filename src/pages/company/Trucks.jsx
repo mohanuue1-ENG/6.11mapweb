@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useDialogBehavior } from '../../components/common/ui';
 import { useGps } from '../../context/GpsContext';
@@ -64,6 +65,16 @@ export default function Trucks() {
     setFormError('');
     setModalOpen(true);
   };
+
+  // The dashboard's "Add" buttons come here with ?add=1: open the form straight away, then tidy the address.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      openAddModal();
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openEditModal = (truck) => {
     setEditingTruck(truck);
@@ -133,7 +144,7 @@ export default function Trucks() {
     <div className="space-y-6 pb-12 font-sans">
       {/* Top Banner */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-3xl border transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
+        isDark ? 'bg-dark-surface border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827] shadow-sm'
       }`}>
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold flex items-center gap-2">
@@ -147,7 +158,7 @@ export default function Trucks() {
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2 text-xs font-bold rounded-xl bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2 shadow-md shadow-brand-green/20"
+          className="px-4 py-2 text-xs font-bold rounded-lg bg-brand-green text-black hover:bg-brand-green-hover transition-all flex items-center gap-2"
         >
           <PlusCircle className="w-4 h-4" /> Add New Truck
         </button>
@@ -162,7 +173,7 @@ export default function Trucks() {
 
       {/* Search Bar */}
       <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-colors ${
-        isDark ? 'bg-[#0B0F14] border-white/10' : 'bg-white border-gray-200 shadow-sm'
+        isDark ? 'bg-dark-surface border-white/10' : 'bg-white border-gray-200 shadow-sm'
       }`}>
         <div className="relative flex-1 max-w-md">
           <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
@@ -173,7 +184,7 @@ export default function Trucks() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none focus:border-brand-green transition-colors ${
               isDark
-                ? 'bg-[#111827] border-white/10 text-white placeholder-gray-500'
+                ? 'bg-dark-surface2 border-white/10 text-white placeholder-gray-500'
                 : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
             }`}
           />
@@ -186,7 +197,7 @@ export default function Trucks() {
 
       {/* Trucks Table */}
       <div className={`rounded-3xl border overflow-hidden shadow-xl transition-colors ${
-        isDark ? 'border-white/10 bg-[#0B0F14] text-white' : 'border-gray-200 bg-white text-[#111827]'
+        isDark ? 'border-white/10 bg-dark-surface text-white' : 'border-gray-200 bg-white text-[#111827]'
       }`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -306,7 +317,7 @@ export default function Trucks() {
       {modalOpen && (
         <TruckDialogFrame onClose={() => setModalOpen(false)}>
           <div className={`relative w-full max-w-lg rounded-3xl border shadow-2xl p-5 sm:p-6 transition-colors ${
-            isDark ? 'bg-[#0B0F14] border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827]'
+            isDark ? 'bg-dark-surface border-white/10 text-white' : 'bg-white border-gray-200 text-[#111827]'
           }`}>
             <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <h2 className="text-base font-bold flex items-center gap-2">
@@ -335,7 +346,7 @@ export default function Trucks() {
                     value={formData.truckNumber}
                     onChange={(e) => setFormData({ ...formData, truckNumber: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green font-numbers ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -347,7 +358,7 @@ export default function Trucks() {
                     value={formData.plateNumber}
                     onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green font-numbers ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -362,7 +373,7 @@ export default function Trucks() {
                     value={formData.make}
                     onChange={(e) => setFormData({ ...formData, make: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -374,7 +385,7 @@ export default function Trucks() {
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -387,7 +398,7 @@ export default function Trucks() {
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green font-numbers ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -402,7 +413,7 @@ export default function Trucks() {
                     value={formData.vin}
                     onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
                     className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green font-numbers uppercase ${
-                      isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                      isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                     }`}
                   />
                 </div>
@@ -414,7 +425,7 @@ export default function Trucks() {
                   value={formData.assignedDriverId}
                   onChange={(e) => setFormData({ ...formData, assignedDriverId: e.target.value })}
                   className={`w-full rounded-xl px-3 py-2 border focus:outline-none focus:border-brand-green ${
-                    isDark ? 'bg-[#111827] border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
+                    isDark ? 'bg-dark-surface2 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
                   }`}
                 >
                   <option value="">-- No Driver Assigned --</option>
@@ -439,7 +450,7 @@ export default function Trucks() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 rounded-xl bg-brand-green text-black font-bold hover:bg-brand-green-hover shadow-md shadow-brand-green/20 disabled:opacity-60"
+                  className="px-5 py-2 rounded-lg bg-brand-green text-black font-bold hover:bg-brand-green-hover disabled:opacity-60"
                 >
                   {saving ? 'Savingâ€¦' : editingTruck ? 'Save Changes' : 'Register Truck'}
                 </button>

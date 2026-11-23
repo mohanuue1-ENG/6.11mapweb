@@ -117,6 +117,16 @@ export function AuthProvider({ children }) {
     [applySession],
   );
 
+  // "Continue with Google": a known account is signed in; an unknown address is returned so "Create account" can start with it.
+  const loginWithGoogle = useCallback(
+    async (credential) => {
+      const data = await api('/auth/google', { method: 'POST', auth: false, body: { credential } });
+      if (data.newUser) return { newUser: true, email: data.email, name: data.name };
+      return applySession(data);
+    },
+    [applySession],
+  );
+
   const register = useCallback(
     async (fields) => {
       const data = await api('/auth/register', { method: 'POST', auth: false, body: fields });
@@ -160,6 +170,7 @@ export function AuthProvider({ children }) {
         loading,
         login,
         verifyLogin,
+        loginWithGoogle,
         register,
         logout,
         isSuperAdmin: user?.role === 'SUPER_ADMIN',

@@ -118,7 +118,7 @@ export default function GpsLocationHistory() {
             <Panel className="p-0 overflow-hidden">
               <div className="overflow-x-auto max-h-96">
                 <table className="w-full text-left text-xs">
-                  <thead className={`sticky top-0 ${isDark ? 'bg-[#0B0F14]' : 'bg-white'}`}>
+                  <thead className={`sticky top-0 ${isDark ? 'bg-dark-surface' : 'bg-white'}`}>
                     <tr className={`border-b text-[11px] uppercase tracking-wider ${isDark ? 'border-white/10 text-gray-400' : 'border-gray-200 text-gray-600'}`}>
                       {['GPS time', 'Latitude', 'Longitude', 'Speed', 'Accuracy', 'Trip'].map((h) => (
                         <th key={h} className="py-3 px-4 font-semibold">{h}</th>
