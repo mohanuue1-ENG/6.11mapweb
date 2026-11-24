@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { asyncHandler, parse, badRequest, notFound } from '../errors.js';
+import { asyncHandler, parse, badRequest, notFound, HttpError } from '../errors.js';
 import { requireRole } from '../middleware/auth.js';
 import { revokeFamily } from '../services/tokens.js';
 import { audit } from '../services/audit.js';
@@ -52,7 +52,7 @@ const updateSchema = z
 
 // /companies — the signed-in Company Admin's own company. The company is
 // always req.auth.companyId; there is deliberately no :id parameter.
-export function companyRoutes({ db, authenticate }) {
+export function companyRoutes({ db, authenticate, config }) {
   const router = Router();
   router.use(authenticate, requireRole('COMPANY_ADMIN'));
 
@@ -62,6 +62,31 @@ export function companyRoutes({ db, authenticate }) {
       const { rows } = await db.query(`SELECT ${COLUMNS} FROM companies WHERE id = $1`, [req.auth.companyId]);
       if (!rows[0]) throw notFound('Company not found');
       res.json({ company: toCompany(rows[0]), usage: await truckUsage(db, req.auth.companyId) });
+    }),
+  );
+
+  // POST /companies/me/setup: after the first payment the company tells us about itself, and then its dashboard opens.
+  const setupSchema = z
+    .object({ name: z.string().trim().min(2).max(200), contactPhone: nullableText(40).optional(), address: nullableText(500).optional(), dotNumber: nullableText(40).optional(), mcNumber: nullableText(40).optional() })
+    .strict();
+  router.post(
+    '/me/setup',
+    asyncHandler(async (req, res) => {
+      if (config?.requireSubscription && !req.auth.user.has_subscription) {
+        throw new HttpError(402, 'PAYMENT_REQUIRED', 'Choose a plan first.');
+      }
+      const input = parse(setupSchema, req.body);
+      const company = await db.tx(async (q) => {
+        const { rows } = await q.query(
+          `UPDATE companies SET name = $2, contact_phone = $3, address = $4, dot_number = $5, mc_number = $6, needs_setup = false, updated_at = now()
+            WHERE id = $1 RETURNING ${COLUMNS}`,
+          [req.auth.companyId, input.name, input.contactPhone ?? null, input.address ?? null, input.dotNumber ? input.dotNumber.toUpperCase() : null, input.mcNumber ? input.mcNumber.toUpperCase() : null],
+        );
+        if (!rows[0]) throw notFound('Company not found');
+        await audit(q, { companyId: req.auth.companyId, actorUserId: req.auth.userId, action: 'COMPANY_SETUP_DONE', details: {}, ip: req.ip });
+        return rows[0];
+      });
+      res.json({ company: toCompany(company) });
     }),
   );
 

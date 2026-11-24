@@ -135,6 +135,15 @@ export function AuthProvider({ children }) {
     [applySession],
   );
 
+  // The plan was paid: the dashboard opens without signing in again.
+  const markSubscribed = useCallback(() => setUser((u) => (u ? { ...u, subscribed: true } : u)), []);
+
+  // The company told us about itself: ask for the dashboard now, and remember the company.
+  const markSetupDone = useCallback((c) => {
+    if (c) setCompany(toCompany(c));
+    setUser((u) => (u ? { ...u, needsSetup: false, companyName: c?.name || u.companyName } : u));
+  }, []);
+
   // Re-reads the company and its truck usage (Company Admin only).
   const reloadCompany = useCallback(async () => {
     const res = await api('/companies/me');
@@ -172,6 +181,8 @@ export function AuthProvider({ children }) {
         verifyLogin,
         loginWithGoogle,
         register,
+        markSubscribed,
+        markSetupDone,
         logout,
         isSuperAdmin: user?.role === 'SUPER_ADMIN',
         isCompanyAdmin: user?.role === 'COMPANY_ADMIN',

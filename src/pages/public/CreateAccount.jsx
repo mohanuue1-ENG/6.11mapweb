@@ -2,37 +2,37 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import GoogleButton from '../../components/common/GoogleButton';
 import { useAuth, homePathFor } from '../../context/AuthContext';
-import { AlertCircle, Mail, User } from 'lucide-react';
+import { AlertCircle, Loader2, Mail, User } from 'lucide-react';
+import { errorMessage } from '../../services/api';
 import PasswordCreate from '../../components/common/PasswordCreate';
 import { assess } from '../../utils/passwordPolicy';
 import { sounds } from '../../utils/sound';
 import AuthShell from '../../components/layout/AuthShell';
-import { readDraft, saveDraft } from '../../services/signupDraft';
 
 const input =
   'w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute pl-11 pr-4 text-sm focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition';
 
-// Step 1 of getting started: the person creates their account. "Join us" (company, plan, payment)
-// is shown only after this.
+// Create account: an ordinary account (name, email, password) made at once; the person is signed in. Using the service needs a
+// plan, so the next page is the plan page. After the first payment the company details are asked. There is no request to approve.
 export default function CreateAccount() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { loginWithGoogle } = useAuth();
-  const existing = readDraft();
+  const { loginWithGoogle, register } = useAuth();
   // Set when the person chose "Continue with Google": name and email come from Google, and no password is needed.
   const [google, setGoogle] = useState(location.state?.google || null);
-  const [name, setName] = useState(location.state?.google?.name || existing?.name || '');
-  const [email, setEmail] = useState(location.state?.google?.email || existing?.email || '');
-  const [password, setPassword] = useState(existing?.password || '');
-  const [confirm, setConfirm] = useState(existing?.password || '');
+  const [name, setName] = useState(location.state?.google?.name || '');
+  const [email, setEmail] = useState(location.state?.google?.email || '');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const onGoogle = async (credential) => {
     setErrorMsg('');
     try {
       const res = await loginWithGoogle(credential);
       if (res.newUser) {
-        setGoogle({ email: res.email, name: res.name });
+        setGoogle({ email: res.email, name: res.name, credential });
         setName(res.name || name);
         setEmail(res.email);
         return;
@@ -43,31 +43,40 @@ export default function CreateAccount() {
     }
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setErrorMsg('');
-    if (google) {
-      saveDraft({ name: name.trim(), email: google.email.toLowerCase() });
-      navigate('/join');
-      return;
+    if (!google) {
+      const verdict = assess(password, { email });
+      if (!verdict.ok) {
+        sounds.error();
+        return setErrorMsg(verdict.label ? `${verdict.label}. ${verdict.message}` : verdict.message);
+      }
+      if (password !== confirm) {
+        sounds.error();
+        return setErrorMsg('The two passwords do not match.');
+      }
     }
-    const verdict = assess(password, { email });
-    if (!verdict.ok) {
+    setSubmitting(true);
+    try {
+      const fields = google
+        ? { adminName: name.trim(), googleCredential: google.credential }
+        : { adminName: name.trim(), email: email.trim().toLowerCase(), password };
+      await register(fields);
+      navigate('/subscribe', { replace: true }); // signed in; now choose and pay for a plan
+    } catch (err) {
       sounds.error();
-      return setErrorMsg(verdict.label ? `${verdict.label}. ${verdict.message}` : verdict.message);
+      setErrorMsg(errorMessage(err, 'We could not create your account. Please try again.'));
+    } finally {
+      setSubmitting(false);
     }
-    if (password !== confirm) {
-      sounds.error();
-      return setErrorMsg('The two passwords do not match.');
-    }
-    saveDraft({ name: name.trim(), email: email.trim().toLowerCase(), password });
-    navigate('/join');
   };
 
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start here. Next you will set up your company."
+      subtitle="Create your account. It takes a minute."
       footer={<>Already have an account? <Link to="/login" className="text-accent font-semibold hover:underline">Sign in</Link></>}
     >
       {errorMsg && (
@@ -94,15 +103,15 @@ export default function CreateAccount() {
         </div>
         {google ? (
           <p className="text-sm text-mute rounded-lg border border-line bg-surface p-3">
-            You are using your Google account, so you will not need a password. Next you set up your company.
+            You are using your Google account, so you will not need a password.
           </p>
         ) : (
           <PasswordCreate password={password} setPassword={setPassword} confirm={confirm} setConfirm={setConfirm} email={email} />
         )}
-        <button type="submit" className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
-          Create account
+        <button type="submit" disabled={submitting} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+          {submitting ? (<><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>) : 'Create account'}
         </button>
-        <p className="text-xs text-mute text-center">You will sign in with this email and password once your company is set up.</p>
+        <p className="text-xs text-mute text-center">You can sign in at once. To use the service you choose a plan next.</p>
       </form>
     </AuthShell>
   );

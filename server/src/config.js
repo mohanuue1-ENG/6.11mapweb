@@ -59,7 +59,9 @@ export function loadConfig(env = process.env) {
     gpsMaxPointAgeDays: int(env.GPS_MAX_POINT_AGE_DAYS, 7),
     gpsMaxFutureSeconds: int(env.GPS_MAX_FUTURE_SECONDS, 300),
     // New companies join by request and approval. Instant self-registration is off unless this is set.
-    allowSelfRegistration: env.ALLOW_SELF_REGISTRATION === 'true',
+    // A company creates its own account at once; the dashboard opens when it pays (set REQUIRE_SUBSCRIPTION=false only for tests).
+    allowSelfRegistration: env.ALLOW_SELF_REGISTRATION !== 'false',
+    requireSubscription: env.REQUIRE_SUBSCRIPTION !== 'false',
     // Online payment (Stripe). With a key set, Stripe is used; without one, local development
     // gets a fake checkout and production has online sign-up switched off.
     stripeSecretKey: env.STRIPE_SECRET_KEY || '',

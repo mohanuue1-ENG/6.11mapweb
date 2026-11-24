@@ -15,7 +15,9 @@ import About from './pages/public/About';
 import Features from './pages/public/Features';
 import Pricing from './pages/public/Pricing';
 import Contact from './pages/public/Contact';
-import RequestAccess from './pages/public/RequestAccess';
+import Subscribe from './pages/public/Subscribe';
+import SubscribeComplete from './pages/public/SubscribeComplete';
+import CompanySetup from './pages/public/CompanySetup';
 import CreateAccount from './pages/public/CreateAccount';
 import Download from './pages/public/Download';
 import Privacy from './pages/public/Privacy';
@@ -79,6 +81,31 @@ function Protected({ roles, children }) {
   if (loading) return <SessionLoading />;
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (!roles.includes(user.role)) return <Navigate to={homePathFor(user.role)} replace />;
+  // The account exists, but the dashboard opens only after the plan is paid.
+  if (user.role === 'COMPANY_ADMIN' && user.subscribed === false) return <Navigate to="/subscribe" replace />;
+  // Paid, but the company has not told us about itself yet.
+  if (user.role === 'COMPANY_ADMIN' && user.needsSetup) return <Navigate to="/company-setup" replace />;
+  return children;
+}
+
+// The plan page: for a signed-in company administrator. A company that has paid goes to its dashboard instead.
+function PlanGuard({ children, allowPaid = false }) {
+  const { user, loading } = useAuth();
+  if (loading) return <SessionLoading />;
+  if (!user) return <Navigate to="/login" replace state={{ from: '/subscribe' }} />;
+  if (user.role !== 'COMPANY_ADMIN') return <Navigate to={homePathFor(user.role)} replace />;
+  if (user.subscribed && !allowPaid) return <Navigate to={homePathFor(user.role)} replace />;
+  return children;
+}
+
+// Asked once, right after the first payment.
+function SetupGuard({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <SessionLoading />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'COMPANY_ADMIN') return <Navigate to={homePathFor(user.role)} replace />;
+  if (!user.subscribed) return <Navigate to="/subscribe" replace />;
+  if (!user.needsSetup) return <Navigate to={homePathFor(user.role)} replace />;
   return children;
 }
 
@@ -125,7 +152,10 @@ function AppRoutes() {
       <Route path="/download" element={<PublicLayout><Download /></PublicLayout>} />
       <Route path="/privacy" element={<PublicLayout><Privacy /></PublicLayout>} />
       <Route path="/create-account" element={<GuestOnly><CreateAccount /></GuestOnly>} />
-      <Route path="/join" element={<GuestOnly><RequestAccess /></GuestOnly>} />
+      <Route path="/join" element={<Navigate to="/create-account" replace />} />
+      <Route path="/company-setup" element={<SetupGuard><CompanySetup /></SetupGuard>} />
+      <Route path="/subscribe" element={<PlanGuard><Subscribe /></PlanGuard>} />
+      <Route path="/subscribe/complete" element={<PlanGuard allowPaid><SubscribeComplete /></PlanGuard>} />
       <Route path="/request-access" element={<Navigate to="/create-account" replace />} />
       <Route path="/register" element={<Navigate to="/create-account" replace />} />
       <Route path="/set-password" element={<SetPassword />} />

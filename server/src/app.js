@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
-import { asyncHandler, notFoundHandler, errorHandler } from './errors.js';
+import { asyncHandler, notFoundHandler, errorHandler, HttpError } from './errors.js';
 import { authenticate as makeAuthenticate } from './middleware/auth.js';
 import { authRoutes } from './routes/auth.js';
 import { companyRoutes, adminCompanyRoutes } from './routes/companies.js';
@@ -55,6 +55,15 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
   app.locals.events = events;
   const deps = { db, config, authenticate, events, mailer, payments, geocoder, googleVerify };
 
+  // The fleet's data is for companies that have paid for a plan (and for the platform itself). Until then the account can
+  // sign in and choose a plan, but not use the fleet endpoints.
+  const requireSubscription = (req, res, next) => {
+    const u = req.auth?.user;
+    if (!config.requireSubscription || !u || u.role === 'SUPER_ADMIN' || u.has_subscription) return next();
+    return next(new HttpError(402, 'PAYMENT_REQUIRED', 'Choose a plan to open your dashboard.'));
+  };
+  const gate = [authenticate, requireSubscription];
+
   const api = express.Router();
   api.use(limiter(300));
 
@@ -74,9 +83,9 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
   api.use('/auth', authRoutes(deps));
   api.use('/companies', companyRoutes(deps));
   api.use('/admin/companies', adminCompanyRoutes(deps));
-  api.use('/trucks', truckRoutes(deps));
-  api.use('/drivers', driverRoutes(deps));
-  api.use('/assignments', assignmentRoutes(deps));
+  api.use('/trucks', ...gate, truckRoutes(deps));
+  api.use('/drivers', ...gate, driverRoutes(deps));
+  api.use('/assignments', ...gate, assignmentRoutes(deps));
   // One driver cannot flood the endpoint, and drivers behind the same network address do not share a quota.
   api.use('/gps/locations/batch', rateLimit({
     windowMs: 60 * 1000,
@@ -89,11 +98,11 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
     },
     message: { error: { code: 'RATE_LIMITED', message: 'Too many uploads, try again shortly' } },
   }));
-  api.use('/gps', gpsRoutes(deps));
-  api.use('/driver', driverSelfRoutes(deps));
-  api.use('/trips', tripRoutes(deps));
-  api.use('/reports', reportRoutes(deps));
-  api.use('/notifications', notificationRoutes(deps));
+  api.use('/gps', ...gate, gpsRoutes(deps));
+  api.use('/driver', ...gate, driverSelfRoutes(deps));
+  api.use('/trips', ...gate, tripRoutes(deps));
+  api.use('/reports', ...gate, reportRoutes(deps));
+  api.use('/notifications', ...gate, notificationRoutes(deps));
   api.use(billingRoutes(deps));
   api.use('/admin', adminRoutes(deps));
 

@@ -4,6 +4,7 @@ import { MAP_STYLES, tileLayerFor } from './mapStyles';
 import 'leaflet/dist/leaflet.css';
 import { useTheme } from '../../context/ThemeContext';
 import { useGps } from '../../context/GpsContext';
+import { api } from '../../services/api';
 import { formatAge } from '../../services/freshness';
 import { formatDuration, useLastStop, usePlace } from '../../services/places';
 import {
@@ -52,6 +53,8 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
   const { liveStatus, now } = useGps();
   const didFitRef = useRef(false);
   const stopMarkerRef = useRef(null);
+  const tripLayersRef = useRef([]);
+  const tripFitRef = useRef(null);
   const [followId, setFollowId] = useState(null);
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
 
@@ -248,6 +251,56 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
       mapInstanceRef.current.panTo([activeTruck.currentLat, activeTruck.currentLng], { animate: true, duration: 0.8 });
     }
   }, [followId, activeTruck?.currentLat, activeTruck?.currentLng]);
+
+  // The trip the selected truck is on now: the road it has driven since the trip started (the same as in the driver app).
+  const [tripRoute, setTripRoute] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!activeTruckId) {
+      setTripRoute(null);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const list = await api(`/trips?status=ACTIVE&truckId=${encodeURIComponent(activeTruckId)}&limit=1`);
+        const first = list.trips?.[0];
+        if (!first) {
+          if (!cancelled) setTripRoute([]);
+          return;
+        }
+        const detail = await api(`/trips/${first.id}`);
+        if (!cancelled) setTripRoute((detail.route || []).filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)).map((p) => [p.latitude, p.longitude]));
+      } catch {
+        if (!cancelled) setTripRoute([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTruckId, activeTruck?.lastUpdate]);
+
+  // Draw it: a green line with a white edge, and a dot where the trip started. Frame it once when it first arrives.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return undefined;
+    tripLayersRef.current.forEach((l) => map.removeLayer(l));
+    tripLayersRef.current = [];
+    if (!tripRoute || tripRoute.length < 2) {
+      if (!tripRoute) tripFitRef.current = null;
+      return undefined;
+    }
+    const casing = L.polyline(tripRoute, { color: '#ffffff', weight: 9, opacity: 0.9, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+    const line = L.polyline(tripRoute, { color: '#22C55E', weight: 5, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+    const start = L.circleMarker(tripRoute[0], { radius: 7, color: '#ffffff', weight: 3, fillColor: '#22C55E', fillOpacity: 1 })
+      .bindTooltip('Trip started here')
+      .addTo(map);
+    tripLayersRef.current = [casing, line, start];
+    if (tripFitRef.current !== activeTruckId) {
+      tripFitRef.current = activeTruckId;
+      map.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 16 });
+    }
+    return undefined;
+  }, [tripRoute, activeTruckId]);
 
   // A pin where the truck last stood still (when that is not where it is now).
   useEffect(() => {

@@ -55,7 +55,8 @@ export async function issueRefreshToken(q, config, { userId, familyId, meta, max
 export async function loadUser(q, userId) {
   const { rows } = await q.query(
     `SELECT u.id, u.name, u.email, u.phone, u.role, u.status, u.company_id,
-            c.name AS company_name, c.status AS company_status
+            c.name AS company_name, c.status AS company_status, COALESCE(c.needs_setup, false) AS needs_setup,
+            EXISTS (SELECT 1 FROM subscriptions s WHERE s.company_id = u.company_id AND s.status IN ('trialing', 'active', 'past_due')) AS has_subscription
        FROM users u LEFT JOIN companies c ON c.id = u.company_id
       WHERE u.id = $1`,
     [userId],

@@ -33,16 +33,21 @@ const email = z.string().trim().toLowerCase().email().max(254);
 const password = strongPassword;
 const driverPassword = basicPassword;
 
-const registerSchema = z.object({
-  companyName: z.string().trim().min(2).max(200),
-  adminName: z.string().trim().min(2).max(200),
-  email,
-  password,
-  phone: optionalText(40),
-  dotNumber: optionalText(40),
-  mcNumber: optionalText(40),
-  address: optionalText(500),
-});
+const registerSchema = z
+  .object({
+    // Optional: a company that signs up by itself gives its details after it has paid.
+    companyName: z.string().trim().min(2).max(200).optional(),
+    adminName: z.string().trim().min(2).max(200),
+    email: email.optional(),
+    // Either a password, or a Google sign-in (Google has already confirmed the address, so no password is needed).
+    password: password.optional(),
+    googleCredential: z.string().min(20).max(6000).optional(),
+    phone: optionalText(40),
+    dotNumber: optionalText(40),
+    mcNumber: optionalText(40),
+    address: optionalText(500),
+  })
+  .refine((v) => (v.googleCredential ? true : Boolean(v.email && v.password)), { message: 'Enter your email and a password' });
 
 const loginSchema = z
   .object({
@@ -63,6 +68,10 @@ export function publicUser(user) {
     role: user.role,
     companyId: user.company_id,
     companyName: user.company_name ?? null,
+    // False until the company has paid for a plan: the website then shows the plan page instead of the dashboard.
+    subscribed: user.role === 'SUPER_ADMIN' || Boolean(user.has_subscription),
+    // True until the company has told us about itself (asked right after the first payment).
+    needsSetup: Boolean(user.needs_setup),
   };
 }
 
@@ -307,19 +316,26 @@ export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
     '/register',
     asyncHandler(async (req, res) => {
       if (!config.allowSelfRegistration) {
-        throw new HttpError(403, 'REGISTRATION_CLOSED', 'New companies join by request. Use Request access.');
+        throw new HttpError(403, 'REGISTRATION_CLOSED', 'New accounts are not being created right now.');
       }
       const input = parse(registerSchema, req.body);
-      const passwordHash = await bcrypt.hash(input.password, config.bcryptRounds);
+      if (input.googleCredential) {
+        if (!config.googleClientId) throw new HttpError(503, 'GOOGLE_NOT_SET', 'Google sign-in is not set up yet.');
+        const g = await googleVerify(input.googleCredential, config.googleClientId);
+        if (!g || !g.email) throw unauthorized('Google could not confirm this sign-in. Try again.');
+        if (!g.emailVerified) throw forbidden('Your Google email address is not verified.');
+        input.email = g.email.toLowerCase();
+      }
+      const passwordHash = await bcrypt.hash(input.password ?? crypto.randomBytes(32).toString('hex'), config.bcryptRounds);
 
       const { userId, refreshToken } = await db.tx(async (q) => {
         const existing = await q.query('SELECT 1 FROM users WHERE lower(email) = $1', [input.email]);
         if (existing.rows.length) throw conflict('An account with this email already exists');
 
         const company = await q.query(
-          `INSERT INTO companies (name, contact_email, contact_phone, address, dot_number, mc_number)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [input.companyName, input.email, input.phone, input.address, input.dotNumber, input.mcNumber],
+          `INSERT INTO companies (name, contact_email, contact_phone, address, dot_number, mc_number, needs_setup)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [input.companyName || input.adminName, input.email, input.phone, input.address, input.dotNumber, input.mcNumber, !input.companyName],
         );
         const companyId = company.rows[0].id;
 

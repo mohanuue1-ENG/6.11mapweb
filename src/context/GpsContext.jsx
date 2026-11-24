@@ -103,7 +103,10 @@ function driverBody(data) {
 }
 
 export function GpsProvider({ children }) {
-  const { user, isSuperAdmin, isCompanyAdmin, isDriver } = useAuth();
+  const auth = useAuth();
+  const { user, isSuperAdmin, isDriver } = auth;
+  // A company that has not paid for a plan yet has no fleet data to load.
+  const isCompanyAdmin = auth.isCompanyAdmin && user?.subscribed !== false;
 
   // Company fleet, from the API.
   const [fleetTrucks, setFleetTrucks] = useState([]);

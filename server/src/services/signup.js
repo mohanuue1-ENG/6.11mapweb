@@ -66,3 +66,44 @@ export async function fulfillPaidSignup({ db, config, mailer }, payment) {
   }
   return { ...out, emailSent: mail.sent, inviteUrl: inviteUrl(config, out.rawToken) };
 }
+
+
+// A company that already has its account has paid for a plan: the subscription becomes active, which opens the dashboard.
+// Safe to call more than once for the same payment. Returns { status: 'created' | 'already' | 'unknown' | 'conflict' }.
+export async function fulfillAccountCheckout({ db, config, mailer }, payment) {
+  const { sessionId, amountCents, currency = 'USD', customerId = null, subscriptionId = null, reference = null } = payment;
+  const out = await db.tx(async (q) => {
+    const r = (await q.query('SELECT * FROM account_checkouts WHERE provider_session_id = $1 FOR UPDATE', [sessionId])).rows[0];
+    if (!r) return { status: 'unknown' };
+    if (r.status === 'paid') return { status: 'already' };
+    const live = await q.query(`SELECT 1 FROM subscriptions WHERE company_id = $1 AND status IN ('trialing', 'active', 'past_due', 'suspended')`, [r.company_id]);
+    if (live.rows.length) return { status: 'conflict', checkout: r };
+    const plan = (await q.query('SELECT * FROM plans WHERE id = $1', [r.plan_id])).rows[0];
+    const company = (await q.query('SELECT name, contact_email FROM companies WHERE id = $1', [r.company_id])).rows[0];
+    const periodEnd = new Date(Date.now() + PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    const sub = await q.query(
+      `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end, provider, provider_customer_id, provider_subscription_id)
+       VALUES ($1, $2, 'active', $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [r.company_id, plan.id, plan.price_cents, plan.truck_limit, periodEnd, r.provider, customerId, subscriptionId],
+    );
+    await q.query(
+      `INSERT INTO payments (company_id, subscription_id, amount_cents, currency, status, provider, provider_reference, paid_at)
+       VALUES ($1, $2, $3, $4, 'succeeded', $5, $6, now()) ON CONFLICT (provider, provider_reference) DO NOTHING`,
+      [r.company_id, sub.rows[0].id, amountCents ?? plan.price_cents, currency.toUpperCase(), r.provider, reference ?? sessionId],
+    );
+    await q.query(`UPDATE account_checkouts SET status = 'paid', paid_at = now() WHERE id = $1`, [r.id]);
+    await audit(q, { companyId: r.company_id, action: 'SUBSCRIPTION_PAID', details: { checkoutId: r.id, plan: plan.name, provider: r.provider } });
+    return { status: 'created', plan, company };
+  });
+  if (out.status === 'conflict') {
+    console.error(`[billing] payment ${sessionId} is for a company that already has a plan. Handle it by hand (refund).`);
+  }
+  if (out.status === 'created' && config.adminNotifyEmail) {
+    await mailer.send({
+      to: config.adminNotifyEmail,
+      subject: `New paid plan: ${out.company.name}`,
+      text: `${out.company.name} (${out.company.contact_email}) paid for the ${out.plan.name} plan.\n\n${config.appUrl}/superadmin/companies`,
+    });
+  }
+  return out;
+}

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler, parse, notFound, HttpError } from '../errors.js';
-import { fulfillPaidSignup } from '../services/signup.js';
+import { fulfillAccountCheckout, fulfillPaidSignup } from '../services/signup.js';
 import { handleStripeEvent } from '../services/stripeEvents.js';
 
 const sessionQuery = z.object({ session: z.string().min(8).max(300) });
@@ -17,6 +17,15 @@ export function signupRoutes({ db, config, mailer, payments }) {
     '/status',
     asyncHandler(async (req, res) => {
       const { session } = parse(sessionQuery, req.query);
+      const account = (
+        await db.query(
+          `SELECT a.status, p.name AS plan_name, p.price_cents FROM account_checkouts a JOIN plans p ON p.id = a.plan_id WHERE a.provider_session_id = $1`,
+          [session],
+        )
+      ).rows[0];
+      if (account) {
+        return res.json({ status: account.status, passwordChosen: true, planName: account.plan_name, amountCents: account.price_cents, provider: payments?.name ?? null });
+      }
       const { rows } = await db.query(
         `SELECT r.status, r.email, (r.password_hash IS NOT NULL) AS password_chosen, p.name AS plan_name, p.price_cents
            FROM registration_requests r LEFT JOIN plans p ON p.id = r.plan_id
@@ -58,6 +67,10 @@ export function signupRoutes({ db, config, mailer, payments }) {
     asyncHandler(async (req, res) => {
       if (payments?.name !== 'mock') throw notFound('Not found');
       const { session } = parse(z.object({ session: z.string().min(8).max(300) }).strict(), req.body);
+      const account = await fulfillAccountCheckout(deps, { sessionId: session, amountCents: null, reference: session });
+      if (account.status !== 'unknown') {
+        return res.json({ status: account.status === 'created' || account.status === 'already' ? 'paid' : account.status, devInviteUrl: null });
+      }
       const result = await fulfillPaidSignup(deps, { sessionId: session, amountCents: null, reference: session });
       if (result.status === 'unknown') throw notFound('Unknown payment session');
       // The link is returned here (and only here, only for the mock) so the flow can be tried without email.

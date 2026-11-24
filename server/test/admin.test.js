@@ -138,10 +138,9 @@ test('the internal plan is only for the internal company, which seeds at $0', as
   assert.equal(typeof alpha.activeTrucks, 'number');
 });
 
-test('checkout is honestly unavailable until a payment provider is chosen', async () => {
+test('checkout only accepts a listed plan, and needs a signed-in company administrator', async () => {
   const res = await as(a).post('/payments/checkout', { planId: crypto.randomUUID() });
-  assert.equal(res.status, 501);
-  assert.equal(res.body.error.code, 'NOT_CONFIGURED');
+  assert.equal(res.status, 400);
   assert.equal((await ctx.api().post(`${V1}/payments/checkout`).send({})).status, 401);
 });
 

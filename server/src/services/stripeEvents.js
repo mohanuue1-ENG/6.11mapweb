@@ -1,4 +1,4 @@
-import { fulfillPaidSignup } from './signup.js';
+import { fulfillAccountCheckout, fulfillPaidSignup } from './signup.js';
 
 const LIVE = `('trialing', 'active', 'past_due')`;
 const fromUnix = (s) => (s ? new Date(s * 1000) : null);
@@ -12,14 +12,18 @@ export async function handleStripeEvent(deps, event) {
     // The first payment: this is what creates the account.
     case 'checkout.session.completed': {
       if (obj.payment_status !== 'paid') return { handled: false, reason: 'not paid yet' };
-      const result = await fulfillPaidSignup(deps, {
+      const payment = {
         sessionId: obj.id,
         amountCents: obj.amount_total,
         currency: obj.currency || 'usd',
         customerId: obj.customer || null,
         subscriptionId: obj.subscription || null,
         reference: obj.payment_intent || obj.id,
-      });
+      };
+      // A company that already has its account pays for a plan; otherwise this is the older pay-first sign-up.
+      const account = await fulfillAccountCheckout(deps, payment);
+      if (account.status !== 'unknown') return { handled: true, result: account.status };
+      const result = await fulfillPaidSignup(deps, payment);
       return { handled: true, result: result.status };
     }
 

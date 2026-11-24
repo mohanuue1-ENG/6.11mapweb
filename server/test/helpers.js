@@ -20,6 +20,8 @@ export async function createTestContext(overrides = {}, deps = {}) {
     AUTH_RATE_LIMIT_PER_MINUTE: '1000',
     CLIENT_URL: 'http://localhost:5173',
     ALLOW_SELF_REGISTRATION: 'true',
+    // Most tests are about fleets, not payment: they run without the paywall. test/account_payment.test.js turns it on.
+    REQUIRE_SUBSCRIPTION: 'false',
     ADMIN_NOTIFY_EMAIL: 'owner@example.test',
     ...overrides,
   });

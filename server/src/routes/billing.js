@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { asyncHandler, HttpError } from '../errors.js';
+import { z } from 'zod';
+import { asyncHandler, parse, badRequest, conflict, HttpError } from '../errors.js';
+import { audit } from '../services/audit.js';
+import { uuid } from '../validation.js';
 import { requireRole } from '../middleware/auth.js';
 import { truckUsage } from '../services/fleet.js';
 
@@ -37,7 +40,7 @@ export function toSubscription(r) {
 
 // Plans, the company's own subscription and payments. Mounted at the API root,
 // so each route carries its own authentication.
-export function billingRoutes({ db, authenticate }) {
+export function billingRoutes({ db, authenticate, config, payments }) {
   const router = Router();
   const admin = [authenticate, requireRole('COMPANY_ADMIN')];
 
@@ -89,13 +92,44 @@ export function billingRoutes({ db, authenticate }) {
     }),
   );
 
-  // The payment provider is still to be chosen (PRD section 14). Until one is
-  // configured, checkout is refused rather than pretending to take money.
+  // POST /payments/checkout: the company chose a plan, so open the payment page. When the payment is confirmed the
+  // subscription becomes active, and that is what opens the dashboard.
   router.post(
     '/payments/checkout',
     ...admin,
-    asyncHandler(async () => {
-      throw new HttpError(501, 'NOT_CONFIGURED', 'Online payment is not available yet. Contact 6.11 to change your plan.');
+    asyncHandler(async (req, res) => {
+      const { planId } = parse(z.object({ planId: uuid }).strict(), req.body);
+      if (!payments) {
+        throw new HttpError(503, 'PAYMENTS_UNAVAILABLE', 'Online payment is not available right now. Please try again later.');
+      }
+      const plan = (await db.query('SELECT * FROM plans WHERE id = $1 AND is_active AND NOT is_internal_only', [planId])).rows[0];
+      if (!plan) throw badRequest('Choose one of the listed plans');
+      const live = await db.query(`SELECT 1 FROM subscriptions WHERE company_id = $1 AND status IN ('trialing', 'active', 'past_due', 'suspended')`, [req.auth.companyId]);
+      if (live.rows.length) throw conflict('Your company already has a plan.');
+
+      const checkout = await db.tx(async (q) => {
+        await q.query(`UPDATE account_checkouts SET status = 'expired' WHERE company_id = $1 AND status = 'awaiting_payment'`, [req.auth.companyId]);
+        return (
+          await q.query(`INSERT INTO account_checkouts (company_id, plan_id, provider) VALUES ($1, $2, $3) RETURNING *`, [req.auth.companyId, plan.id, payments.name])
+        ).rows[0];
+      });
+      let opened;
+      try {
+        opened = await payments.createCheckout({
+          request: { id: checkout.id, email: req.auth.user.email },
+          plan,
+          config,
+          successUrl: `${config.appUrl}/subscribe/complete?session={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${config.appUrl}/subscribe?canceled=1`,
+        });
+      } catch (err) {
+        console.error('[payments] could not open checkout:', err.message);
+        await db.query(`UPDATE account_checkouts SET status = 'expired' WHERE id = $1`, [checkout.id]);
+        throw new HttpError(502, 'PAYMENT_PROVIDER_ERROR', 'We could not start the payment. Please try again.');
+      }
+      await db.query('UPDATE account_checkouts SET provider_session_id = $2 WHERE id = $1', [checkout.id, opened.sessionId]);
+      await audit(db, { companyId: req.auth.companyId, actorUserId: req.auth.userId, action: 'CHECKOUT_STARTED', details: { plan: plan.name, provider: payments.name }, ip: req.ip });
+      res.status(201).json({ checkoutUrl: opened.url, sessionId: opened.sessionId });
     }),
   );
 

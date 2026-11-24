@@ -25,8 +25,8 @@ export default function MockCheckout() {
     setPaying(true);
     setError('');
     try {
-      const r = await api('/signup/mock/complete', { method: 'POST', auth: false, body: { session } });
-      navigate(`/signup/complete?session=${encodeURIComponent(session)}`, { state: { devInviteUrl: r.devInviteUrl } });
+      await api('/signup/mock/complete', { method: 'POST', auth: false, body: { session } });
+      navigate(`/subscribe/complete?session=${encodeURIComponent(session)}`);
     } catch (err) {
       setError(errorMessage(err, 'The test payment failed.'));
       setPaying(false);
@@ -54,7 +54,7 @@ export default function MockCheckout() {
             <button onClick={pay} disabled={paying} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
               {paying ? (<><Loader2 className="w-4 h-4 animate-spin" /> Paying…</>) : 'Pay (test)'}
             </button>
-            <Link to="/join?canceled=1" className="block text-center text-mute hover:text-ink">Cancel</Link>
+            <Link to="/subscribe?canceled=1" className="block text-center text-mute hover:text-ink">Cancel</Link>
           </>
         )}
       </div>
