@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import ProductSwitchCard from '../../components/common/ProductSwitchCard';
 import { ArrowRight, BarChart3, ChevronDown, Clock, MapPin, Route as RouteIcon, ShieldCheck, Smartphone } from 'lucide-react';
 
 // Still used by the Features page.
@@ -61,6 +62,10 @@ export default function Home() {
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className={`${wrap} py-14 lg:py-16`} aria-label="Our products">
+        <ProductSwitchCard />
       </section>
 
       <section className={`${wrap} py-16 lg:py-20`}>

@@ -5,13 +5,13 @@ import { api, errorMessage } from '../../services/api';
 import { money } from '../../services/format';
 import { ErrorBanner, Field, Modal, PageHeader, Panel, Spinner, primaryButton, useFieldClass } from '../../components/common/ui';
 
-const EMPTY = { name: '', description: '', price: '', truckLimit: '', yearlyDiscount: '0', isInternalOnly: false, isActive: true };
+const EMPTY = { name: '', description: '', price: '', truckLimit: '', yearlyDiscount: '0', product: 'trackova', isInternalOnly: false, isActive: true };
 
 function PlanForm({ plan, onClose, onSaved }) {
   const field = useFieldClass();
   const [f, setF] = useState(
     plan
-      ? { name: plan.name, description: plan.description || '', price: (plan.priceCents / 100).toString(), truckLimit: plan.truckLimit ?? '', yearlyDiscount: String(plan.yearlyDiscountPercent ?? 0), isInternalOnly: plan.isInternalOnly, isActive: plan.isActive }
+      ? { name: plan.name, description: plan.description || '', price: (plan.priceCents / 100).toString(), truckLimit: plan.truckLimit ?? '', yearlyDiscount: String(plan.yearlyDiscountPercent ?? 0), product: plan.product || 'trackova', isInternalOnly: plan.isInternalOnly, isActive: plan.isActive }
       : EMPTY,
   );
   const [error, setError] = useState('');
@@ -31,6 +31,7 @@ function PlanForm({ plan, onClose, onSaved }) {
       priceCents: Math.round(price * 100),
       truckLimit: f.truckLimit === '' ? null : Number(f.truckLimit),
       yearlyDiscountPercent: discount,
+      product: f.product,
       isInternalOnly: f.isInternalOnly,
       isActive: f.isActive,
     };
@@ -53,6 +54,13 @@ function PlanForm({ plan, onClose, onSaved }) {
           <Field label="Monthly price (USD) *"><input required type="number" min="0" step="0.01" className={field} value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></Field>
           <Field label="Truck limit (empty = unlimited)"><input type="number" min="1" className={field} value={f.truckLimit} onChange={(e) => setF({ ...f, truckLimit: e.target.value })} /></Field>
         </div>
+        <Field label="Product">
+          <select className={field} value={f.product} onChange={(e) => setF({ ...f, product: e.target.value })}>
+            <option value="trackova">Trackova (tracking)</option>
+            <option value="loadova">Loadova (loads)</option>
+            <option value="both">Trackova + Loadova</option>
+          </select>
+        </Field>
         <Field label="Yearly discount (%) (0 = no yearly option)">
           <input type="number" min="0" max="90" step="1" className={field} value={f.yearlyDiscount} onChange={(e) => setF({ ...f, yearlyDiscount: e.target.value })} />
         </Field>
@@ -120,7 +128,7 @@ export default function SuperAdminPlans() {
                 {plans?.length === 0 && <tr><td colSpan={6} className={`py-10 text-center ${muted}`}>No plans yet. Prices are not set until you create them.</td></tr>}
                 {plans?.map((p) => (
                   <tr key={p.id} className={p.isActive ? '' : 'opacity-60'}>
-                    <td className="py-3.5 px-4"><div className="font-bold">{p.name}</div><div className={muted}>{p.description || '—'}</div></td>
+                    <td className="py-3.5 px-4"><div className="font-bold">{p.name} <span className="ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase bg-brand-green/15 text-brand-green">{p.product === 'both' ? 'Both' : p.product === 'loadova' ? 'Loadova' : 'Trackova'}</span></div><div className={muted}>{p.description || '—'}</div></td>
                     <td className="py-3.5 px-4 font-numbers">{money(p.priceCents)}/mo{p.yearlyDiscountPercent > 0 && <div className={muted}>{money(p.yearlyPriceCents)}/yr (−{p.yearlyDiscountPercent}%)</div>}</td>
                     <td className="py-3.5 px-4 font-numbers">{p.truckLimit ?? 'Unlimited'}</td>
                     <td className="py-3.5 px-4">{p.isInternalOnly ? 'Internal only' : 'Public'}</td>

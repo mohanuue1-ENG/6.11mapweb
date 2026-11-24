@@ -18,6 +18,7 @@ const planFields = {
   truckLimit: z.union([z.number().int().min(1).max(100000), z.null()]),
   // Percent taken off twelve months of the monthly price when a company pays for a year at once.
   yearlyDiscountPercent: z.number().int().min(0).max(90),
+  product: z.enum(['trackova', 'loadova', 'both']),
   isInternalOnly: z.boolean(),
   isActive: z.boolean(),
 };
@@ -26,6 +27,7 @@ const createPlan = z
     ...planFields,
     truckLimit: planFields.truckLimit.default(null),
     yearlyDiscountPercent: planFields.yearlyDiscountPercent.default(0),
+    product: planFields.product.default('trackova'),
     isInternalOnly: z.boolean().default(false),
     isActive: z.boolean().default(true),
   })
@@ -37,6 +39,7 @@ const PLAN_COLUMNS = {
   priceCents: 'price_cents',
   truckLimit: 'truck_limit',
   yearlyDiscountPercent: 'yearly_discount_percent',
+  product: 'product',
   isInternalOnly: 'is_internal_only',
   isActive: 'is_active',
 };
@@ -175,9 +178,9 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
       const p = parse(createPlan, req.body);
       const row = await db.tx(async (q) => {
         const { rows } = await q.query(
-          `INSERT INTO plans (name, description, price_cents, truck_limit, yearly_discount_percent, is_internal_only, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-          [p.name, p.description, p.priceCents, p.truckLimit, p.yearlyDiscountPercent, p.isInternalOnly, p.isActive],
+          `INSERT INTO plans (name, description, price_cents, truck_limit, yearly_discount_percent, product, is_internal_only, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+          [p.name, p.description, p.priceCents, p.truckLimit, p.yearlyDiscountPercent, p.product, p.isInternalOnly, p.isActive],
         );
         await audit(q, { actorUserId: req.auth.userId, action: 'PLAN_CREATED', details: { planId: rows[0].id, name: p.name }, ip: req.ip });
         return rows[0];

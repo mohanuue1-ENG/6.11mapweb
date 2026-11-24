@@ -62,6 +62,8 @@ export function loadConfig(env = process.env) {
     // A company creates its own account at once; the dashboard opens when it pays (set REQUIRE_SUBSCRIPTION=false only for tests).
     allowSelfRegistration: env.ALLOW_SELF_REGISTRATION !== 'false',
     requireSubscription: env.REQUIRE_SUBSCRIPTION !== 'false',
+    // Loadova (loads and dispatch) is shown on the website, but cannot be bought until it is ready (LOADOVA_AVAILABLE=true).
+    loadovaAvailable: env.LOADOVA_AVAILABLE === 'true',
     // Online payment (Stripe). With a key set, Stripe is used; without one, local development
     // gets a fake checkout and production has online sign-up switched off.
     stripeSecretKey: env.STRIPE_SECRET_KEY || '',

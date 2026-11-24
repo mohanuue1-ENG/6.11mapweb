@@ -156,3 +156,46 @@ test('a plan can be paid yearly with a percentage off twelve months', async () =
   assert.equal((await ctx.api().get(`${V1}/signup/status?session=${monthly.body.sessionId}`)).body.amountCents, 10000);
   assert.equal((await as(d.session).post('/payments/checkout', { planId: yearlyPlan.id, interval: 'weekly' })).status, 400);
 });
+
+
+test('a plan says which product it is for; Loadova plans are listed but cannot be bought until Loadova is available', async () => {
+  const loadova = (await as(root).post('/admin/plans', { name: 'Loadova Starter', priceCents: 3900, truckLimit: 10, product: 'loadova' })).body.plan;
+  assert.equal(loadova.product, 'loadova');
+  assert.equal(plan.product, 'trackova'); // the default
+
+  const listed = (await ctx.api().get(`${V1}/plans`)).body.plans;
+  assert.equal(listed.find((p) => p.id === loadova.id).purchasable, false);
+  assert.equal(listed.find((p) => p.id === plan.id).purchasable, true);
+
+  const c = await newCompany();
+  const refused = await as(c.session).post('/payments/checkout', { planId: loadova.id });
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.error.code, 'COMING_SOON');
+
+  // A tracking plan gives the tracking product only.
+  const checkout = await as(c.session).post('/payments/checkout', { planId: plan.id });
+  await ctx.api().post(`${V1}/signup/mock/complete`).send({ session: checkout.body.sessionId });
+  const login = await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: c.email, password: c.password });
+  assert.deepEqual(login.body.user.products, ['trackova']);
+  assert.equal((await as(c.session).get('/subscriptions/current')).body.subscription.product, 'trackova');
+  assert.deepEqual((await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: root.email, password: root.password })).body.user.products, ['trackova', 'loadova']);
+});
+
+test('when Loadova is available, a plan for both gives both products', async () => {
+  const ctx2 = await createTestContext({ REQUIRE_SUBSCRIPTION: 'true', LOADOVA_AVAILABLE: 'true' });
+  try {
+    const root2 = await ctx2.createSuperAdmin();
+    const both = (await ctx2.api().post(`${V1}/admin/plans`).set(bearer(root2)).send({ name: 'Both', priceCents: 7500, truckLimit: 30, product: 'both' })).body.plan;
+    const email = `${crypto.randomBytes(5).toString('hex')}@example.test`;
+    const password = randomPassword();
+    const reg = await ctx2.api().post(`${V1}/auth/register`).set('X-Client-Type', 'mobile').send({ adminName: 'Bea Both', email, password });
+    const session = reg.body;
+    const checkout = await ctx2.api().post(`${V1}/payments/checkout`).set(bearer(session)).send({ planId: both.id });
+    assert.equal(checkout.status, 201, JSON.stringify(checkout.body));
+    await ctx2.api().post(`${V1}/signup/mock/complete`).send({ session: checkout.body.sessionId });
+    const login = await ctx2.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email, password });
+    assert.deepEqual(login.body.user.products, ['trackova', 'loadova']);
+  } finally {
+    await ctx2.db.close();
+  }
+});

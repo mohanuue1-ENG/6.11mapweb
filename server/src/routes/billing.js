@@ -15,6 +15,7 @@ export function toPlan(r) {
     priceCents: r.price_cents,
     currency: r.currency,
     truckLimit: r.truck_limit,
+    product: r.product ?? 'trackova',
     yearlyDiscountPercent: r.yearly_discount_percent ?? 0,
     yearlyPriceCents: yearlyCents(r.price_cents, r.yearly_discount_percent ?? 0),
     isInternalOnly: r.is_internal_only,
@@ -25,7 +26,7 @@ export function toPlan(r) {
 
 export const SUBSCRIPTION_SELECT = `
   SELECT s.id, s.company_id, s.status, s.price_cents, s.truck_limit, s.current_period_start,
-         s.current_period_end, s.billing_interval, s.created_at, p.id AS plan_id, p.name AS plan_name
+         s.current_period_end, s.billing_interval, s.product, s.created_at, p.id AS plan_id, p.name AS plan_name
     FROM subscriptions s JOIN plans p ON p.id = s.plan_id`;
 
 export function toSubscription(r) {
@@ -35,6 +36,7 @@ export function toSubscription(r) {
     plan: { id: r.plan_id, name: r.plan_name },
     status: r.status,
     billingInterval: r.billing_interval ?? 'month',
+    product: r.product ?? 'trackova',
     priceCents: r.price_cents,
     truckLimit: r.truck_limit,
     currentPeriodStart: r.current_period_start,
@@ -45,6 +47,8 @@ export function toSubscription(r) {
 // Plans, the company's own subscription and payments. Mounted at the API root,
 // so each route carries its own authentication.
 export function billingRoutes({ db, authenticate, config, payments }) {
+  // A plan for Loadova (or both) is listed, but cannot be bought until Loadova is available.
+  const purchasable = (planRow) => planRow.product === 'trackova' || Boolean(config?.loadovaAvailable);
   const router = Router();
   const admin = [authenticate, requireRole('COMPANY_ADMIN')];
 
@@ -55,7 +59,7 @@ export function billingRoutes({ db, authenticate, config, payments }) {
       const { rows } = await db.query(
         `SELECT * FROM plans WHERE is_active AND NOT is_internal_only ORDER BY price_cents, name`,
       );
-      res.json({ plans: rows.map(toPlan) });
+      res.json({ plans: rows.map((r) => ({ ...toPlan(r), purchasable: purchasable(r) })) });
     }),
   );
 
@@ -108,6 +112,7 @@ export function billingRoutes({ db, authenticate, config, payments }) {
       }
       const plan = (await db.query('SELECT * FROM plans WHERE id = $1 AND is_active AND NOT is_internal_only', [planId])).rows[0];
       if (!plan) throw badRequest('Choose one of the listed plans');
+      if (!purchasable(plan)) throw new HttpError(409, 'COMING_SOON', 'This plan is not available yet. Contact us to join the waiting list.');
       const live = await db.query(`SELECT 1 FROM subscriptions WHERE company_id = $1 AND status IN ('trialing', 'active', 'past_due', 'suspended')`, [req.auth.companyId]);
       if (live.rows.length) throw conflict('Your company already has a plan.');
 

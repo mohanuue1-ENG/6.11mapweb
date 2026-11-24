@@ -85,9 +85,9 @@ export async function fulfillAccountCheckout({ db, config, mailer }, payment) {
     const price = amountFor(plan, interval);
     const periodEnd = new Date(Date.now() + periodDays(interval) * 24 * 60 * 60 * 1000);
     const sub = await q.query(
-      `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end, billing_interval, provider, provider_customer_id, provider_subscription_id)
-       VALUES ($1, $2, 'active', $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [r.company_id, plan.id, price, plan.truck_limit, periodEnd, interval, r.provider, customerId, subscriptionId],
+      `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end, billing_interval, product, provider, provider_customer_id, provider_subscription_id)
+       VALUES ($1, $2, 'active', $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [r.company_id, plan.id, price, plan.truck_limit, periodEnd, interval, plan.product ?? 'trackova', r.provider, customerId, subscriptionId],
     );
     await q.query(
       `INSERT INTO payments (company_id, subscription_id, amount_cents, currency, status, provider, provider_reference, paid_at)

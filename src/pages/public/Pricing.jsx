@@ -14,7 +14,7 @@ export default function Pricing() {
 
   useEffect(() => {
     api('/plans', { auth: false })
-      .then((r) => setPlans(r.plans))
+      .then((r) => setPlans(r.plans.filter((p) => p.purchasable !== false)))
       .catch(() => setFailed(true));
   }, []);
 

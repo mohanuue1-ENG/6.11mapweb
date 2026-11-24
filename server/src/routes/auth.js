@@ -12,6 +12,7 @@ import {
   assertAccountUsable,
 } from '../services/tokens.js';
 import { audit } from '../services/audit.js';
+import { productsOf } from '../services/plans.js';
 import { hashToken, revokeAllForUser } from '../services/tokens.js';
 import { HttpError, notFound } from '../errors.js';
 import { strongPassword, password as basicPassword } from '../validation.js';
@@ -70,6 +71,8 @@ export function publicUser(user) {
     companyName: user.company_name ?? null,
     // False until the company has paid for a plan: the website then shows the plan page instead of the dashboard.
     subscribed: user.role === 'SUPER_ADMIN' || Boolean(user.has_subscription),
+    // The products the company has paid for: 'trackova' (tracking), 'loadova' (loads). The platform admin has both.
+    products: user.role === 'SUPER_ADMIN' ? ['trackova', 'loadova'] : productsOf(user.sub_product),
     // True until the company has told us about itself (asked right after the first payment).
     needsSetup: Boolean(user.needs_setup),
   };

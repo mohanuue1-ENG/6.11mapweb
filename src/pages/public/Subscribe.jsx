@@ -22,8 +22,9 @@ export default function Subscribe() {
   useEffect(() => {
     api('/plans', { auth: false })
       .then((r) => {
-        setPlans(r.plans);
-        if (r.plans[0]) setPlanId(r.plans[0].id);
+        const open = r.plans.filter((p) => p.purchasable !== false);
+        setPlans(open);
+        if (open[0]) setPlanId(open[0].id);
       })
       .catch(() => setPlans([]));
   }, []);
