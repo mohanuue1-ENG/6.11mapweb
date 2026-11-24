@@ -15,7 +15,7 @@ export function createPaymentProvider(config) {
     const stripe = new Stripe(config.stripeSecretKey);
     return {
       name: 'stripe',
-      async createCheckout({ request, plan, successUrl, cancelUrl }) {
+      async createCheckout({ request, plan, interval = 'month', amountCents = null, successUrl, cancelUrl }) {
         const session = await stripe.checkout.sessions.create({
           mode: 'subscription',
           customer_email: request.email,
@@ -25,9 +25,9 @@ export function createPaymentProvider(config) {
               quantity: 1,
               price_data: {
                 currency: 'usd',
-                unit_amount: plan.price_cents,
-                recurring: { interval: 'month' },
-                product_data: { name: `6.11 Drive GPS — ${plan.name}` },
+                unit_amount: amountCents ?? plan.price_cents,
+                recurring: { interval },
+                product_data: { name: `6.11 TruckOS — ${plan.name}${interval === 'year' ? ' (yearly)' : ''}` },
               },
             },
           ],

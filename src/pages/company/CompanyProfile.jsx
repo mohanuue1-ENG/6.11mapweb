@@ -176,7 +176,7 @@ export default function CompanyProfile() {
           <div>
             <span className={`text-xs uppercase tracking-wider block font-bold ${muted}`}>Subscription Plan</span>
             <h2 className="text-2xl font-black text-brand-green mt-1">
-              {sub ? `${sub.plan.name} — ${money(sub.priceCents)} / month` : company?.isInternal ? 'Internal Fleet — $0 / month' : 'No plan yet'}
+              {sub ? `${sub.plan.name} — ${money(sub.priceCents)} / ${sub.billingInterval === 'year' ? 'year' : 'month'}` : company?.isInternal ? 'Internal Fleet — $0 / month' : 'No plan yet'}
             </h2>
           </div>
 

@@ -4,11 +4,13 @@ import { ArrowRight } from 'lucide-react';
 import { api } from '../../services/api';
 import { money } from '../../services/format';
 import { wrap } from './Home';
+import BillingSwitch, { bestDiscount, priceFor } from '../../components/common/BillingSwitch';
 
 // Plans and prices come from the platform administrator; nothing is hard-coded here.
 export default function Pricing() {
   const [plans, setPlans] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [interval, setInterval] = useState('month');
 
   useEffect(() => {
     api('/plans', { auth: false })
@@ -35,6 +37,10 @@ export default function Pricing() {
         </div>
       )}
 
+      {plans && plans.length > 0 && bestDiscount(plans) > 0 && (
+        <div className="flex justify-center"><BillingSwitch value={interval} onChange={setInterval} discount={bestDiscount(plans)} /></div>
+      )}
+
       {plans && plans.length > 0 && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((p) => (
@@ -43,8 +49,11 @@ export default function Pricing() {
                 <h2 className="text-lg font-bold">{p.name}</h2>
                 {p.description && <p className="text-sm text-mute">{p.description}</p>}
                 <div>
-                  <span className="text-4xl font-extrabold">{money(p.priceCents)}</span>
-                  <span className="text-sm text-mute"> / month</span>
+                  <span className="text-4xl font-extrabold">{money(priceFor(p, interval).cents)}</span>
+                  <span className="text-sm text-mute"> / {priceFor(p, interval).per}</span>
+                  {interval === 'year' && priceFor(p, interval).percent > 0 && (
+                    <p className="text-xs font-semibold text-accent mt-1">Save {priceFor(p, interval).percent}% ({money(priceFor(p, interval).savedCents)} a year)</p>
+                  )}
                 </div>
                 <ul className="text-sm space-y-2 pt-1">
                   <li className="flex items-center gap-2"><span className="text-accent">&bull;</span> {p.truckLimit == null ? 'Unlimited trucks' : `Up to ${p.truckLimit} trucks`}</li>

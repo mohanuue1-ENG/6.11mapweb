@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, Truck } from 'lucide-react';
 import { api, errorMessage } from '../../services/api';
 import { money } from '../../services/format';
 import { useAuth } from '../../context/AuthContext';
+import BillingSwitch, { bestDiscount, priceFor } from '../../components/common/BillingSwitch';
 import AuthShell from '../../components/layout/AuthShell';
 
 // Shown to a company that has its account but has not paid yet: choose a plan and pay. The dashboard opens as soon as the
@@ -16,6 +17,7 @@ export default function Subscribe() {
   const [planId, setPlanId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [paying, setPaying] = useState(false);
+  const [interval, setInterval] = useState('month');
 
   useEffect(() => {
     api('/plans', { auth: false })
@@ -31,7 +33,7 @@ export default function Subscribe() {
     setErrorMsg('');
     setPaying(true);
     try {
-      const res = await api('/payments/checkout', { method: 'POST', body: { planId } });
+      const res = await api('/payments/checkout', { method: 'POST', body: { planId, interval } });
       window.location.href = res.checkoutUrl; // the payment page
     } catch (err) {
       setErrorMsg(errorMessage(err, 'We could not start the payment. Please try again.'));
@@ -68,6 +70,7 @@ export default function Subscribe() {
       {plans && plans.length === 0 && <p className="text-sm text-mute">No plan is available right now. Please try again later, or contact us.</p>}
       {plans && plans.length > 0 && (
         <div className="space-y-4">
+          {bestDiscount(plans) > 0 && <div className="flex justify-center"><BillingSwitch value={interval} onChange={setInterval} discount={bestDiscount(plans)} /></div>}
           <div role="radiogroup" aria-label="Plan" className="space-y-3">
             {plans.map((p) => (
               <button
@@ -80,9 +83,10 @@ export default function Subscribe() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-bold">{p.name}</span>
-                  <span className="font-extrabold">{money(p.priceCents)}<span className="text-xs text-mute font-medium"> / month</span></span>
+                  <span className="font-extrabold">{money(priceFor(p, interval).cents)}<span className="text-xs text-mute font-medium"> / {priceFor(p, interval).per}</span></span>
                 </div>
                 {p.description && <p className="text-xs text-mute mt-1">{p.description}</p>}
+                {interval === 'year' && priceFor(p, interval).percent > 0 && <p className="text-xs font-semibold text-accent mt-1">Save {priceFor(p, interval).percent}% ({money(priceFor(p, interval).savedCents)} a year)</p>}
                 <p className="text-xs text-mute mt-2 flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" /> {p.truckLimit == null ? 'Unlimited trucks' : `Up to ${p.truckLimit} trucks`}</p>
               </button>
             ))}

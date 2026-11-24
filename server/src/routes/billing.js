@@ -5,6 +5,7 @@ import { audit } from '../services/audit.js';
 import { uuid } from '../validation.js';
 import { requireRole } from '../middleware/auth.js';
 import { truckUsage } from '../services/fleet.js';
+import { amountFor, yearlyCents } from '../services/plans.js';
 
 export function toPlan(r) {
   return {
@@ -14,6 +15,8 @@ export function toPlan(r) {
     priceCents: r.price_cents,
     currency: r.currency,
     truckLimit: r.truck_limit,
+    yearlyDiscountPercent: r.yearly_discount_percent ?? 0,
+    yearlyPriceCents: yearlyCents(r.price_cents, r.yearly_discount_percent ?? 0),
     isInternalOnly: r.is_internal_only,
     isActive: r.is_active,
     createdAt: r.created_at,
@@ -22,7 +25,7 @@ export function toPlan(r) {
 
 export const SUBSCRIPTION_SELECT = `
   SELECT s.id, s.company_id, s.status, s.price_cents, s.truck_limit, s.current_period_start,
-         s.current_period_end, s.created_at, p.id AS plan_id, p.name AS plan_name
+         s.current_period_end, s.billing_interval, s.created_at, p.id AS plan_id, p.name AS plan_name
     FROM subscriptions s JOIN plans p ON p.id = s.plan_id`;
 
 export function toSubscription(r) {
@@ -31,6 +34,7 @@ export function toSubscription(r) {
     companyId: r.company_id,
     plan: { id: r.plan_id, name: r.plan_name },
     status: r.status,
+    billingInterval: r.billing_interval ?? 'month',
     priceCents: r.price_cents,
     truckLimit: r.truck_limit,
     currentPeriodStart: r.current_period_start,
@@ -98,7 +102,7 @@ export function billingRoutes({ db, authenticate, config, payments }) {
     '/payments/checkout',
     ...admin,
     asyncHandler(async (req, res) => {
-      const { planId } = parse(z.object({ planId: uuid }).strict(), req.body);
+      const { planId, interval } = parse(z.object({ planId: uuid, interval: z.enum(['month', 'year']).default('month') }).strict(), req.body);
       if (!payments) {
         throw new HttpError(503, 'PAYMENTS_UNAVAILABLE', 'Online payment is not available right now. Please try again later.');
       }
@@ -110,7 +114,7 @@ export function billingRoutes({ db, authenticate, config, payments }) {
       const checkout = await db.tx(async (q) => {
         await q.query(`UPDATE account_checkouts SET status = 'expired' WHERE company_id = $1 AND status = 'awaiting_payment'`, [req.auth.companyId]);
         return (
-          await q.query(`INSERT INTO account_checkouts (company_id, plan_id, provider) VALUES ($1, $2, $3) RETURNING *`, [req.auth.companyId, plan.id, payments.name])
+          await q.query(`INSERT INTO account_checkouts (company_id, plan_id, provider, billing_interval) VALUES ($1, $2, $3, $4) RETURNING *`, [req.auth.companyId, plan.id, payments.name, interval])
         ).rows[0];
       });
       let opened;
@@ -119,6 +123,8 @@ export function billingRoutes({ db, authenticate, config, payments }) {
           request: { id: checkout.id, email: req.auth.user.email },
           plan,
           config,
+          interval,
+          amountCents: amountFor(plan, interval),
           successUrl: `${config.appUrl}/subscribe/complete?session={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${config.appUrl}/subscribe?canceled=1`,
         });
@@ -128,7 +134,7 @@ export function billingRoutes({ db, authenticate, config, payments }) {
         throw new HttpError(502, 'PAYMENT_PROVIDER_ERROR', 'We could not start the payment. Please try again.');
       }
       await db.query('UPDATE account_checkouts SET provider_session_id = $2 WHERE id = $1', [checkout.id, opened.sessionId]);
-      await audit(db, { companyId: req.auth.companyId, actorUserId: req.auth.userId, action: 'CHECKOUT_STARTED', details: { plan: plan.name, provider: payments.name }, ip: req.ip });
+      await audit(db, { companyId: req.auth.companyId, actorUserId: req.auth.userId, action: 'CHECKOUT_STARTED', details: { plan: plan.name, interval, provider: payments.name }, ip: req.ip });
       res.status(201).json({ checkoutUrl: opened.url, sessionId: opened.sessionId });
     }),
   );

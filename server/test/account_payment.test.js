@@ -122,3 +122,37 @@ test('an account needs only a name, email and password; the company details are 
   const named = await ctx.api().post(`${V1}/auth/register`).set('X-Client-Type', 'mobile').send({ companyName: 'Named Co', adminName: 'Nina Named', email: `${crypto.randomBytes(4).toString('hex')}@example.test`, password: randomPassword() });
   assert.equal(named.body.user.needsSetup, false);
 });
+
+test('a plan can be paid yearly with a percentage off twelve months', async () => {
+  const yearlyPlan = (await as(root).post('/admin/plans', { name: 'Yearly Fleet', priceCents: 10000, truckLimit: 20, yearlyDiscountPercent: 20 })).body.plan;
+  assert.equal(yearlyPlan.yearlyDiscountPercent, 20);
+  assert.equal(yearlyPlan.yearlyPriceCents, 96000); // 12 x $100 less 20%
+
+  // The public list shows both prices.
+  const listed = (await ctx.api().get(`${V1}/plans`)).body.plans.find((p) => p.id === yearlyPlan.id);
+  assert.equal(listed.yearlyPriceCents, 96000);
+
+  // A bad discount is refused.
+  assert.equal((await as(root).post('/admin/plans', { name: 'Too cheap', priceCents: 1000, yearlyDiscountPercent: 95 })).status, 400);
+
+  const c = await newCompany();
+  const checkout = await as(c.session).post('/payments/checkout', { planId: yearlyPlan.id, interval: 'year' });
+  assert.equal(checkout.status, 201, JSON.stringify(checkout.body));
+  const status = await ctx.api().get(`${V1}/signup/status?session=${checkout.body.sessionId}`);
+  assert.equal(status.body.interval, 'year');
+  assert.equal(status.body.amountCents, 96000);
+
+  await ctx.api().post(`${V1}/signup/mock/complete`).send({ session: checkout.body.sessionId });
+  const sub = (await as(c.session).get('/subscriptions/current')).body.subscription;
+  assert.equal(sub.billingInterval, 'year');
+  assert.equal(sub.priceCents, 96000);
+  const days = (new Date(sub.currentPeriodEnd) - Date.now()) / 86400000;
+  assert.ok(days > 360 && days <= 365.1, `period is about a year, got ${days}`);
+  assert.equal((await as(c.session).get('/payments')).body.payments[0].amountCents, 96000);
+
+  // Monthly is still the default.
+  const d = await newCompany();
+  const monthly = await as(d.session).post('/payments/checkout', { planId: yearlyPlan.id });
+  assert.equal((await ctx.api().get(`${V1}/signup/status?session=${monthly.body.sessionId}`)).body.amountCents, 10000);
+  assert.equal((await as(d.session).post('/payments/checkout', { planId: yearlyPlan.id, interval: 'weekly' })).status, 400);
+});

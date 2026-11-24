@@ -49,7 +49,7 @@ export default function MockCheckout() {
           <>
             <div className="p-4 rounded-xl border border-line bg-surface flex items-center justify-between">
               <span className="font-bold">{info.planName}</span>
-              <span className="font-extrabold">{money(info.amountCents)} <span className="text-xs text-mute font-medium">/ month</span></span>
+              <span className="font-extrabold">{money(info.amountCents)} <span className="text-xs text-mute font-medium">/ {info.interval === 'year' ? 'year' : 'month'}</span></span>
             </div>
             <button onClick={pay} disabled={paying} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
               {paying ? (<><Loader2 className="w-4 h-4 animate-spin" /> Paying…</>) : 'Pay (test)'}
