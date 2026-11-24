@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react';
+import { LogOut, Menu, User, X } from 'lucide-react';
 import { homePathFor, useAuth } from '../../context/AuthContext';
 import Brand from '../common/Brand';
 import ThemeToggle from '../common/ThemeToggle';
@@ -92,6 +92,9 @@ export default function Navbar() {
     navigate('/');
   };
 
+  // The dashboard button appears only once the company has paid for a plan; before that there is nothing to open.
+  const canOpenDashboard = isAuthenticated && (user.role !== 'COMPANY_ADMIN' || user.subscribed !== false);
+
   const primary =
     'inline-flex h-9 items-center px-4 rounded-lg bg-brand-green text-[#052E16] text-sm font-semibold hover:bg-brand-green-hover hover:-translate-y-px transition-all duration-200';
 
@@ -107,18 +110,21 @@ export default function Navbar() {
             <ThemeToggle />
             {isAuthenticated ? (
               <>
-                <Link to={homePathFor(user.role)} className={`hidden sm:inline-flex ${primary}`}>
-                  Open dashboard
-                </Link>
+                {canOpenDashboard && (
+                  <Link to={homePathFor(user.role)} className={`hidden sm:inline-flex ${primary}`}>
+                    Open dashboard
+                  </Link>
+                )}
                 <div ref={accountRef} className="relative hidden sm:block">
                   <button
                     onClick={() => setMenuOpen(!menuOpen)}
                     aria-haspopup="menu"
                     aria-expanded={menuOpen}
-                    className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg border border-line bg-surface text-sm font-medium text-ink hover:border-brand-green transition-colors"
+                    aria-label={`Account: ${user?.name || ''}`}
+                    title={user?.name}
+                    className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-line bg-surface text-ink hover:border-brand-green hover:text-accent transition-colors"
                   >
-                    <span className="max-w-[120px] truncate">{user?.name}</span>
-                    <ChevronDown className="w-3.5 h-3.5 text-mute" />
+                    <User className="w-4 h-4" />
                   </button>
                   {menuOpen && (
                     <div role="menu" className="absolute right-0 mt-2 w-52 rounded-xl border border-line bg-surface shadow-xl p-1.5 text-sm">
@@ -172,10 +178,12 @@ export default function Navbar() {
             <div className="pt-2 flex items-center gap-2">
               {isAuthenticated ? (
                 <>
-                  <Link to={homePathFor(user.role)} onClick={() => setMobileOpen(false)} className="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-brand-green text-[#052E16] text-sm font-semibold">
-                    Open dashboard
-                  </Link>
-                  <button onClick={signOut} className="h-9 px-3 rounded-lg border border-line text-sm font-medium text-ink">
+                  {canOpenDashboard && (
+                    <Link to={homePathFor(user.role)} onClick={() => setMobileOpen(false)} className="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-brand-green text-[#052E16] text-sm font-semibold">
+                      Open dashboard
+                    </Link>
+                  )}
+                  <button onClick={signOut} className={`h-9 px-3 rounded-lg border border-line text-sm font-medium text-ink ${canOpenDashboard ? '' : 'flex-1'}`}>
                     Sign out
                   </button>
                 </>
