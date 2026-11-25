@@ -14,7 +14,7 @@ const FIELDS = [
   { key: 'address', label: 'Headquarters Address' },
 ];
 
-export default function CompanyProfile() {
+function CompanyProfileInner() {
   const { user, company, usage, updateCompany, reloadCompany } = useAuth();
   const { isDark } = useTheme();
 
@@ -234,6 +234,17 @@ export default function CompanyProfile() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+import ReviewCard from '../../components/common/ReviewCard';
+
+export default function CompanyProfile() {
+  return (
+    <div className="space-y-6">
+      <CompanyProfileInner />
+      <ReviewCard />
     </div>
   );
 }

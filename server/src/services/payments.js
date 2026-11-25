@@ -38,6 +38,11 @@ export function createPaymentProvider(config) {
         });
         return { url: session.url, sessionId: session.id };
       },
+      // Stripe's own page where the customer changes the card (it must be switched on in the Stripe dashboard: Settings, Billing, Customer portal).
+      async createPortal({ customerId, returnUrl }) {
+        const session = await stripe.billingPortal.sessions.create({ customer: customerId, return_url: returnUrl });
+        return { url: session.url };
+      },
       // Verifies Stripe's signature on the raw body and returns the event.
       constructEvent(rawBody, signature) {
         return stripe.webhooks.constructEvent(rawBody, signature, config.stripeWebhookSecret);
@@ -51,6 +56,9 @@ export function createPaymentProvider(config) {
       async createCheckout({ config: c = config }) {
         const sessionId = `mock_${crypto.randomBytes(16).toString('hex')}`;
         return { url: `${c.appUrl}/mock-checkout?session=${sessionId}`, sessionId };
+      },
+      async createPortal({ returnUrl }) {
+        return { url: `${returnUrl}?payment=updated` };
       },
     };
   }

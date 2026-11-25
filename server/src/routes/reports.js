@@ -31,7 +31,7 @@ const miles = (m) => (m == null ? '' : (m / 1609.344).toFixed(2));
 // /reports — Company Admin only, always for the admin's own company.
 export function reportRoutes({ db, authenticate }) {
   const router = Router();
-  router.use(authenticate, requireRole('COMPANY_ADMIN'));
+  router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
   router.get(
     '/trips',

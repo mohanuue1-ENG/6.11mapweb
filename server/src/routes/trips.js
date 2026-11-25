@@ -4,7 +4,7 @@ import { asyncHandler, parse, notFound, HttpError } from '../errors.js';
 import { requireRole } from '../middleware/auth.js';
 import { uuid } from '../validation.js';
 import { resolveDriver } from '../services/gps.js';
-import { TRIP_SELECT, toTrip, validateFix, recordFix, loadRoute, distanceOf, downsample } from '../services/trips.js';
+import { TRIP_SELECT, toTrip, validateFix, recordFix, loadRoute, distanceOf, downsample, loadStops } from '../services/trips.js';
 import { notify } from '../services/notifications.js';
 import { audit } from '../services/audit.js';
 
@@ -35,7 +35,10 @@ export function tripRoutes({ db, config, authenticate, events }) {
     '/start',
     requireRole('DRIVER'),
     asyncHandler(async (req, res) => {
-      const fix = validateFix(config, req.body);
+      // The driver may start the trip for one of their loads: the trip is then called by the load number.
+      const { loadId: rawLoadId, ...fixBody } = req.body ?? {};
+      const loadId = rawLoadId == null || rawLoadId === '' ? null : parse(z.string().uuid(), rawLoadId);
+      const fix = validateFix(config, fixBody);
       const { companyId } = req.auth;
 
       const { row, ingest } = await db.tx(async (q) => {
@@ -61,11 +64,19 @@ export function tripRoutes({ db, config, authenticate, events }) {
           throw new HttpError(409, 'ACTIVE_TRIP', 'You already have a trip in progress.', { tripId: active.rows[0].id });
         }
 
+        if (loadId) {
+          const mine = await q.query(`SELECT status FROM loads WHERE id = $1 AND company_id = $2 AND driver_id = $3 AND status <> 'delivered'`, [loadId, companyId, driver.id]);
+          if (!mine.rows[0]) throw new HttpError(404, 'LOAD_NOT_FOUND', 'That load is not one of your open loads.');
+        }
         const inserted = await q.query(
-          `INSERT INTO trips (company_id, driver_id, truck_id, start_latitude, start_longitude, start_gps_timestamp)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [companyId, driver.id, assignment.rows[0].truck_id, fix.latitude, fix.longitude, new Date(fix.gpsTimestamp)],
+          `INSERT INTO trips (company_id, driver_id, truck_id, start_latitude, start_longitude, start_gps_timestamp, load_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [companyId, driver.id, assignment.rows[0].truck_id, fix.latitude, fix.longitude, new Date(fix.gpsTimestamp), loadId],
         );
+        // Starting the trip for a load means the load is on its way.
+        if (loadId) {
+          await q.query(`UPDATE loads SET status = 'picked_up', picked_up_at = COALESCE(picked_up_at, now()), updated_at = now() WHERE id = $1 AND status = 'assigned'`, [loadId]);
+        }
         const tripId = inserted.rows[0].id;
         const point = await recordFix(q, config, { companyId, driverId: driver.id, fix });
         await notify(q, {
@@ -155,7 +166,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
 
   router.get(
     '/',
-    requireRole('COMPANY_ADMIN', 'DRIVER'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER', 'DRIVER'),
     asyncHandler(async (req, res) => {
       const f = parse(listQuery, req.query);
       const params = [req.auth.companyId];
@@ -167,7 +178,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
       // A driver only ever sees their own trips.
       if (req.auth.role === 'DRIVER') add('t.driver_id = ?', (await resolveDriver(db, req.auth)).id);
       if (f.status) add('t.status = ?', f.status);
-      if (f.driverId && req.auth.role === 'COMPANY_ADMIN') add('t.driver_id = ?', f.driverId);
+      if (f.driverId && req.auth.role !== 'DRIVER') add('t.driver_id = ?', f.driverId);
       if (f.truckId) add('t.truck_id = ?', f.truckId);
       if (f.from) add('t.started_at >= ?', new Date(f.from));
       if (f.to) add('t.started_at <= ?', new Date(f.to));
@@ -185,7 +196,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
 
   router.get(
     '/:id',
-    requireRole('COMPANY_ADMIN', 'DRIVER'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER', 'DRIVER'),
     asyncHandler(async (req, res) => {
       const id = parse(uuid, req.params.id);
       const params = [req.auth.companyId, id];
@@ -200,6 +211,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
       res.json({
         trip: toTrip(rows[0]),
         routePointCount: route.length,
+        stops: await loadStops(db, req.auth.companyId, id),
         route: downsample(route).map((p) => ({
           latitude: p.latitude,
           longitude: p.longitude,
@@ -213,7 +225,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
   // Recomputes a finished trip's distance, e.g. after offline points arrived late.
   router.post(
     '/:id/recalculate-distance',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const id = parse(uuid, req.params.id);
       const { companyId, userId } = req.auth;
@@ -234,7 +246,7 @@ export function tripRoutes({ db, config, authenticate, events }) {
   // Deletes a finished trip and its recorded points (for example a test trip). A trip in progress must be ended first.
   router.delete(
     '/:id',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const id = parse(uuid, req.params.id);
       const { companyId, userId } = req.auth;

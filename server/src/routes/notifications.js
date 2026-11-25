@@ -19,7 +19,7 @@ function toNotification(r) {
 // admin of the company; the company always comes from the session.
 export function notificationRoutes({ db, authenticate }) {
   const router = Router();
-  router.use(authenticate, requireRole('COMPANY_ADMIN'));
+  router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
   const visible = 'company_id = $1 AND (user_id IS NULL OR user_id = $2)';
 

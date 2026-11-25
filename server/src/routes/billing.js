@@ -144,5 +144,30 @@ export function billingRoutes({ db, authenticate, config, payments }) {
     }),
   );
 
+  // POST /billing/portal: the page where the owner updates the card. The customer id is the one the payment provider gave at the first payment.
+  router.post(
+    '/billing/portal',
+    ...admin,
+    asyncHandler(async (req, res) => {
+      const sub = (
+        await db.query(
+          `SELECT provider_customer_id FROM subscriptions WHERE company_id = $1 AND status IN ('trialing', 'active', 'past_due', 'suspended') ORDER BY created_at DESC LIMIT 1`,
+          [req.auth.companyId],
+        )
+      ).rows[0];
+      if (!sub) throw conflict('Your company has no plan to update.');
+      if (!payments?.createPortal || (payments.name === 'stripe' && !sub.provider_customer_id)) {
+        throw new HttpError(503, 'PAYMENTS_UNAVAILABLE', 'Updating the payment is not available right now. Please contact us.');
+      }
+      try {
+        const opened = await payments.createPortal({ customerId: sub.provider_customer_id, returnUrl: `${config.appUrl}/company/dashboard` });
+        res.json({ url: opened.url });
+      } catch (err) {
+        console.error('[payments] could not open the billing portal:', err.message);
+        throw new HttpError(502, 'PAYMENT_PROVIDER_ERROR', 'We could not open the payment page. Please try again.');
+      }
+    }),
+  );
+
   return router;
 }

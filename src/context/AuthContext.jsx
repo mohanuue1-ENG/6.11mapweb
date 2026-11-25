@@ -22,6 +22,8 @@ function toCompany(c) {
 export const homePathFor = (role) =>
   role === 'SUPER_ADMIN' ? '/superadmin' : role === 'DRIVER' ? '/driver/portal' : '/company/dashboard';
 
+// Company staff: the owner (Company Admin) and the dispatchers. Only the owner manages the company, the plan and the team.
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
@@ -185,7 +187,10 @@ export function AuthProvider({ children }) {
         markSetupDone,
         logout,
         isSuperAdmin: user?.role === 'SUPER_ADMIN',
-        isCompanyAdmin: user?.role === 'COMPANY_ADMIN',
+        isCompanyAdmin: user?.role === 'COMPANY_ADMIN' || user?.role === 'DISPATCHER',
+        isOwner: user?.role === 'COMPANY_ADMIN',
+        hasLoadova: Boolean(user?.products?.includes('loadova')),
+        hasTrackova: Boolean(user?.products?.includes('trackova')),
         isDriver: user?.role === 'DRIVER',
         isAuthenticated: !!user,
       }}

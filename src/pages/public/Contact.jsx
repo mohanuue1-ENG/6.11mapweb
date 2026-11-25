@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { wrap } from './Home';
 import { CONTACT, hasContact } from '../../services/contact';
 
-export default function Contact() {
+export default function Contact({ embedded = false }) {
+  const H = embedded ? 'h2' : 'h1';
   return (
-    <div className={`${wrap} py-14`}>
+    <div className={embedded ? '' : `${wrap} py-14`}>
       <div className="max-w-xl space-y-6">
         <div className="space-y-2">
-          <h1 className="text-4xl font-extrabold tracking-tight">Contact</h1>
+          <H className="text-3xl sm:text-4xl font-extrabold tracking-tight">Contact</H>
           <p className="text-mute text-lg">Questions about plans or your account? Write or call us.</p>
         </div>
         {hasContact ? (

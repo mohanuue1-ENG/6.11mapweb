@@ -1,4 +1,5 @@
 import { fulfillAccountCheckout, fulfillPaidSignup } from './signup.js';
+import { audit } from './audit.js';
 
 const LIVE = `('trialing', 'active', 'past_due')`;
 const fromUnix = (s) => (s ? new Date(s * 1000) : null);
@@ -37,7 +38,7 @@ export async function handleStripeEvent(deps, event) {
       if (!sub) return { handled: false, reason: 'unknown subscription' };
       await db.tx(async (q) => {
         await q.query(
-          `UPDATE subscriptions SET status = 'active', current_period_end = GREATEST(COALESCE(current_period_end, $2), $2), updated_at = now() WHERE id = $1`,
+          `UPDATE subscriptions SET status = 'active', failed_payments = 0, current_period_end = GREATEST(COALESCE(current_period_end, $2), $2), updated_at = now() WHERE id = $1`,
           [sub.id, end],
         );
         await q.query(
@@ -52,10 +53,21 @@ export async function handleStripeEvent(deps, event) {
     case 'invoice.payment_failed': {
       const subId = obj.subscription ?? obj.parent?.subscription_details?.subscription;
       if (!subId) return { handled: false, reason: 'no subscription' };
-      await db.query(
-        `UPDATE subscriptions SET status = 'past_due', updated_at = now() WHERE provider_subscription_id = $1 AND status IN ${LIVE}`,
+      const { rows } = await db.query(
+        `UPDATE subscriptions SET status = 'past_due', failed_payments = failed_payments + 1, updated_at = now()
+          WHERE provider_subscription_id = $1 AND status IN ${LIVE} RETURNING id, company_id, failed_payments`,
         [subId],
       );
+      // Too many failed payments: the company is blocked by itself. The platform owner can open it again from Companies.
+      const limit = deps.config?.maxFailedPayments ?? 10;
+      if (rows[0] && rows[0].failed_payments >= limit) {
+        await db.tx(async (q) => {
+          await q.query(`UPDATE companies SET status = 'suspended', updated_at = now() WHERE id = $1 AND status = 'active'`, [rows[0].company_id]);
+          await q.query(`UPDATE subscriptions SET status = 'suspended', updated_at = now() WHERE id = $1`, [rows[0].id]);
+          await audit(q, { companyId: rows[0].company_id, action: 'COMPANY_STATUS_CHANGED', details: { status: 'suspended', reason: `${limit} failed payments` } });
+        });
+        return { handled: true, result: 'blocked' };
+      }
       return { handled: true, result: 'past_due' };
     }
 

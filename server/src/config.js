@@ -61,6 +61,8 @@ export function loadConfig(env = process.env) {
     // New companies join by request and approval. Instant self-registration is off unless this is set.
     // A company creates its own account at once; the dashboard opens when it pays (set REQUIRE_SUBSCRIPTION=false only for tests).
     allowSelfRegistration: env.ALLOW_SELF_REGISTRATION !== 'false',
+    maxFailedLogins: int(env.MAX_FAILED_LOGINS, 10),
+    maxFailedPayments: int(env.MAX_FAILED_PAYMENTS, 10),
     requireSubscription: env.REQUIRE_SUBSCRIPTION !== 'false',
     // Loadova (loads and dispatch) is shown on the website, but cannot be bought until it is ready (LOADOVA_AVAILABLE=true).
     loadovaAvailable: env.LOADOVA_AVAILABLE === 'true',

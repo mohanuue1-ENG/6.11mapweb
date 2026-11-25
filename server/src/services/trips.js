@@ -3,15 +3,18 @@ import { z } from 'zod';
 import { HttpError, parse } from '../errors.js';
 import { ingestBatch } from './gps.js';
 import { routeDistance } from './geo.js';
+import { findLastStop } from './stops.js';
+import { notify } from './notifications.js';
 
 export const TRIP_SELECT = `
   SELECT t.id, t.status, t.driver_id, d.name AS driver_name, t.truck_id, k.truck_number,
          t.start_latitude, t.start_longitude, t.start_gps_timestamp, t.started_at,
          t.end_latitude, t.end_longitude, t.end_gps_timestamp, t.ended_at,
-         t.duration_seconds, t.distance_meters
+         t.duration_seconds, t.distance_meters, t.load_id, l.load_number
     FROM trips t
     JOIN drivers d ON d.id = t.driver_id
-    JOIN trucks k ON k.id = t.truck_id`;
+    JOIN trucks k ON k.id = t.truck_id
+    LEFT JOIN loads l ON l.id = t.load_id`;
 
 export function toTrip(r) {
   return {
@@ -28,6 +31,8 @@ export function toTrip(r) {
     endedAt: r.ended_at,
     durationSeconds: r.duration_seconds,
     distanceMeters: r.distance_meters,
+    loadId: r.load_id ?? null,
+    loadNumber: r.load_number ?? null,
   };
 }
 
@@ -93,4 +98,48 @@ export function downsample(route, max = 1500) {
   const out = route.filter((_, i) => i % step === 0);
   if (out[out.length - 1] !== route[route.length - 1]) out.push(route[route.length - 1]);
   return out;
+}
+
+
+// A truck that stands still for 5 minutes during a trip (it never moved after the trip started, or it stopped on the way):
+// the administrator is told once, and the stop stays on the trip's map even if the trip carries on or ends.
+export const STOP_ALERT_SECONDS = 300;
+export async function checkTripStop(db, { companyId, driverId }) {
+  const trip = (
+    await db.query(
+      `SELECT t.id, k.truck_number, d.name AS driver_name FROM trips t JOIN trucks k ON k.id = t.truck_id JOIN drivers d ON d.id = t.driver_id
+        WHERE t.company_id = $1 AND t.driver_id = $2 AND t.status = 'ACTIVE'`,
+      [companyId, driverId],
+    )
+  ).rows[0];
+  if (!trip) return null;
+  const route = await loadRoute(db, companyId, trip.id);
+  const stop = findLastStop(route, { minSeconds: STOP_ALERT_SECONDS });
+  if (!stop) return null;
+  const startedAt = new Date(stop.startedAtMs);
+  const inserted = await db.query(
+    `INSERT INTO trip_stops (company_id, trip_id, latitude, longitude, started_at, duration_seconds)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (trip_id, started_at) DO UPDATE SET duration_seconds = GREATEST(trip_stops.duration_seconds, EXCLUDED.duration_seconds)
+     RETURNING (xmax = 0) AS is_new`,
+    [companyId, trip.id, stop.latitude, stop.longitude, startedAt, stop.durationSeconds],
+  );
+  if (inserted.rows[0].is_new && stop.ongoing) {
+    await notify(db, {
+      companyId,
+      type: 'TRUCK_STOPPED',
+      title: `Truck #${trip.truck_number} has not moved for 5 minutes`,
+      message: `${trip.driver_name}'s trip is running, but the truck has stood still since ${startedAt.toISOString()} at ${stop.latitude.toFixed(5)}, ${stop.longitude.toFixed(5)}. The stop is marked on the map.`,
+      severity: 'warning',
+    });
+  }
+  return { ...stop, isNew: inserted.rows[0].is_new };
+}
+
+export async function loadStops(q, companyId, tripId) {
+  const { rows } = await q.query(
+    `SELECT latitude, longitude, started_at, duration_seconds FROM trip_stops WHERE company_id = $1 AND trip_id = $2 ORDER BY started_at`,
+    [companyId, tripId],
+  );
+  return rows.map((r) => ({ latitude: r.latitude, longitude: r.longitude, startedAt: r.started_at, durationSeconds: r.duration_seconds }));
 }

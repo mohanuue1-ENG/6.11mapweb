@@ -397,8 +397,8 @@ export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
       const input = parse(loginSchema, req.body);
 
       const found = input.email
-        ? await db.query('SELECT id, password_hash FROM users WHERE lower(email) = $1', [input.email])
-        : await db.query('SELECT id, password_hash FROM users WHERE phone = $1', [input.phone]);
+        ? await db.query('SELECT id, password_hash, role, company_id, status, failed_logins FROM users WHERE lower(email) = $1', [input.email])
+        : await db.query('SELECT id, password_hash, role, company_id, status, failed_logins FROM users WHERE phone = $1', [input.phone]);
       const row = found.rows[0];
 
       const ok = await bcrypt.compare(input.password, row?.password_hash ?? dummyHash);
@@ -408,8 +408,21 @@ export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
           details: { identifier: input.email ?? input.phone },
           ip: req.ip,
         });
+        // Wrong passwords in a row block the account by themselves. The platform owner is never blocked this way,
+        // so nobody can lock the owner out by guessing; those attempts show up in Security & Audit instead.
+        if (row && row.status === 'active' && row.role !== 'SUPER_ADMIN') {
+          const { rows: counted } = await db.query('UPDATE users SET failed_logins = failed_logins + 1 WHERE id = $1 RETURNING failed_logins', [row.id]);
+          if (counted[0].failed_logins >= config.maxFailedLogins) {
+            await db.tx(async (q) => {
+              await q.query(`UPDATE users SET status = 'disabled', blocked_at = now(), updated_at = now() WHERE id = $1`, [row.id]);
+              await revokeAllForUser(q, row.id);
+              await audit(q, { companyId: row.company_id, actorUserId: row.id, action: 'ACCOUNT_BLOCKED', details: { reason: `${config.maxFailedLogins} wrong passwords in a row` }, ip: req.ip });
+            });
+          }
+        }
         throw unauthorized('Invalid credentials');
       }
+      if (row.failed_logins !== 0) await db.query('UPDATE users SET failed_logins = 0 WHERE id = $1', [row.id]);
 
       const user = await loadUser(db, row.id);
       assertAccountUsable(user);
@@ -422,7 +435,7 @@ export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
       // A driver is also checked with a code emailed to their account address, unless this phone was verified
       // and remembered less than 30 days ago. Administrators (Super Admin, Company Admin) are checked the same way
       // on the website, unless this browser was verified and remembered.
-      const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN';
+      const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN' || user.role === 'DISPATCHER';
       const needsCode = (user.role === 'DRIVER' && config.driverCodeLogin) || (isAdmin && config.adminCodeLogin);
       if (needsCode) {
         const trusted = input.deviceToken ? await checkTrustedDevice(db, user.id, input.deviceToken) : false;

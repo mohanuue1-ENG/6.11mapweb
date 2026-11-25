@@ -17,6 +17,12 @@ import { tripRoutes } from './routes/trips.js';
 import { reportRoutes } from './routes/reports.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { billingRoutes } from './routes/billing.js';
+import { teamRoutes } from './routes/team.js';
+import { reviewRoutes, adminReviewRoutes } from './routes/reviews.js';
+import { requireRole } from './middleware/auth.js';
+import { loadRoutes, driverLoadRoutes } from './routes/loads.js';
+import { fuelRoutes, driverFuelRoutes } from './routes/fuel.js';
+import { productsOf } from './services/plans.js';
 import { adminRoutes } from './routes/admin.js';
 import { accessRoutes } from './routes/access.js';
 import { createMailer } from './services/mailer.js';
@@ -63,6 +69,13 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
     return next(new HttpError(402, 'PAYMENT_REQUIRED', 'Choose a plan to open your dashboard.'));
   };
   const gate = [authenticate, requireSubscription];
+  // Loads belong to Loadova: the company must have paid for Loadova (or both products).
+  const requireLoadova = (req, res, next) => {
+    const u = req.auth?.user;
+    if (!config.requireSubscription || !u || u.role === 'SUPER_ADMIN' || productsOf(u.sub_product).includes('loadova')) return next();
+    return next(new HttpError(402, 'PRODUCT_REQUIRED', 'Your plan does not include Loadova.'));
+  };
+  const loadGate = [authenticate, requireSubscription, requireLoadova];
 
   const api = express.Router();
   api.use(limiter(300));
@@ -82,6 +95,13 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
   api.use('/signup', signupRoutes(deps));
   api.use('/auth', authRoutes(deps));
   api.use('/companies', companyRoutes(deps));
+  api.use('/team', ...gate, teamRoutes(deps));
+  api.use('/reviews', reviewRoutes(deps));
+  api.use('/admin/reviews', authenticate, requireRole('SUPER_ADMIN'), adminReviewRoutes(deps));
+  api.use('/loads', ...loadGate, loadRoutes(deps));
+  api.use('/driver/loads', ...loadGate, driverLoadRoutes(deps));
+  api.use('/fuel', ...loadGate, fuelRoutes(deps));
+  api.use('/driver/fuel', ...loadGate, driverFuelRoutes(deps));
   api.use('/admin/companies', adminCompanyRoutes(deps));
   api.use('/trucks', ...gate, truckRoutes(deps));
   api.use('/drivers', ...gate, driverRoutes(deps));

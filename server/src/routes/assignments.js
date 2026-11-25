@@ -32,7 +32,7 @@ const listSchema = z.object({ active: z.enum(['true', 'false']).optional() });
 // change this (drivers cannot reassign themselves), and only inside their company.
 export function assignmentRoutes({ db, authenticate }) {
   const router = Router();
-  router.use(authenticate, requireRole('COMPANY_ADMIN'));
+  router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
   router.get(
     '/',

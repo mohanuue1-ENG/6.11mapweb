@@ -64,7 +64,7 @@ const COLUMNS = {
 // req.auth.companyId, so another company's truck id simply does not exist here.
 export function truckRoutes({ db, authenticate }) {
   const router = Router();
-  router.use(authenticate, requireRole('COMPANY_ADMIN'));
+  router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
   const findOne = async (q, companyId, id) => {
     const { rows } = await q.query(`${SELECT} WHERE t.company_id = $1 AND t.id = $2`, [companyId, id]);

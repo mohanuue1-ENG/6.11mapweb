@@ -18,6 +18,12 @@ import Contact from './pages/public/Contact';
 import Subscribe from './pages/public/Subscribe';
 import SubscribeComplete from './pages/public/SubscribeComplete';
 import CompanySetup from './pages/public/CompanySetup';
+import Loads from './pages/company/Loads';
+import Fuel from './pages/company/Fuel';
+import Team from './pages/company/Team';
+import SuperAdminReviews from './pages/superadmin/SuperAdminReviews';
+import SuperAdminNotifications from './pages/superadmin/SuperAdminNotifications';
+import SuperAdminUsers from './pages/superadmin/SuperAdminUsers';
 import CreateAccount from './pages/public/CreateAccount';
 import Download from './pages/public/Download';
 import Privacy from './pages/public/Privacy';
@@ -128,6 +134,12 @@ function FirstVisit({ children }) {
 }
 
 const company = (page) => (
+  <Protected roles={['COMPANY_ADMIN', 'DISPATCHER']}>
+    <DashboardLayout>{page}</DashboardLayout>
+  </Protected>
+);
+// Only the owner of the company: the plan, the company details and the team.
+const owner = (page) => (
   <Protected roles={['COMPANY_ADMIN']}>
     <DashboardLayout>{page}</DashboardLayout>
   </Protected>
@@ -145,10 +157,10 @@ function AppRoutes() {
     <Routes>
       {/* Public Pages with Top Glass Navbar & Footer */}
       <Route path="/" element={<FirstVisit><PublicLayout><Home /></PublicLayout></FirstVisit>} />
-      <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
-      <Route path="/features" element={<PublicLayout><Features /></PublicLayout>} />
+      <Route path="/about" element={<PublicLayout><Home /></PublicLayout>} />
+      <Route path="/features" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/pricing" element={<PublicLayout><Pricing /></PublicLayout>} />
-      <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
+      <Route path="/contact" element={<PublicLayout><Home /></PublicLayout>} />
       <Route path="/download" element={<PublicLayout><Download /></PublicLayout>} />
       <Route path="/privacy" element={<PublicLayout><Privacy /></PublicLayout>} />
       <Route path="/create-account" element={<GuestOnly><CreateAccount /></GuestOnly>} />
@@ -173,7 +185,10 @@ function AppRoutes() {
       <Route path="/company/drivers" element={company(<Drivers />)} />
       <Route path="/company/notifications" element={company(<Notifications />)} />
       <Route path="/company/reports" element={company(<Reports />)} />
-      <Route path="/company/profile" element={company(<CompanyProfile />)} />
+      <Route path="/company/profile" element={owner(<CompanyProfile />)} />
+      <Route path="/company/loads" element={company(<Loads />)} />
+      <Route path="/company/fuel" element={company(<Fuel />)} />
+      <Route path="/company/team" element={owner(<Team />)} />
 
       {/* Super Admin Dashboard with Left Sidebar */}
       <Route path="/superadmin" element={superAdmin(<SuperAdminDashboard />)} />
@@ -181,6 +196,9 @@ function AppRoutes() {
       <Route path="/superadmin/payments" element={superAdmin(<SuperAdminPayments />)} />
       <Route path="/superadmin/requests" element={superAdmin(<SuperAdminRequests />)} />
       <Route path="/superadmin/plans" element={superAdmin(<SuperAdminPlans />)} />
+      <Route path="/superadmin/users" element={superAdmin(<SuperAdminUsers />)} />
+      <Route path="/superadmin/notifications" element={superAdmin(<SuperAdminNotifications />)} />
+      <Route path="/superadmin/reviews" element={superAdmin(<SuperAdminReviews />)} />
       <Route path="/superadmin/audit-logs" element={superAdmin(<SuperAdminAuditLogs />)} />
 
       {/* Driver Mobile View with Native Bottom Nav */}

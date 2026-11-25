@@ -94,7 +94,7 @@ export default function Subscribe() {
           </div>
           <p className="text-xs text-mute">You pay securely by card on the next page.</p>
           <button type="button" onClick={pay} disabled={paying || !planId} className="w-full h-12 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-            {paying ? (<><Loader2 className="w-4 h-4 animate-spin" /> Opening payment…</>) : 'Pay and open my dashboard'}
+            {paying ? (<><Loader2 className="w-4 h-4 animate-spin" /> Opening payment…</>) : 'Pay'}
           </button>
           <p className="text-xs text-mute text-center">Questions? <Link to="/contact" className="text-link font-semibold hover:underline">Contact us</Link></p>
         </div>

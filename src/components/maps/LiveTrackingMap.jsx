@@ -254,10 +254,12 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
 
   // The trip the selected truck is on now: the road it has driven since the trip started (the same as in the driver app).
   const [tripRoute, setTripRoute] = useState(null);
+  const [tripStops, setTripStops] = useState([]);
   useEffect(() => {
     let cancelled = false;
     if (!activeTruckId) {
       setTripRoute(null);
+      setTripStops([]);
       return undefined;
     }
     (async () => {
@@ -269,6 +271,7 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
           return;
         }
         const detail = await api(`/trips/${first.id}`);
+        if (!cancelled) setTripStops(detail.stops || []);
         if (!cancelled) setTripRoute((detail.route || []).filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)).map((p) => [p.latitude, p.longitude]));
       } catch {
         if (!cancelled) setTripRoute([]);
@@ -294,13 +297,18 @@ export default function LiveTrackingMap({ trucks: allTrucks = [], selectedTruckI
     const start = L.circleMarker(tripRoute[0], { radius: 7, color: '#ffffff', weight: 3, fillColor: '#22C55E', fillOpacity: 1 })
       .bindTooltip('Trip started here')
       .addTo(map);
-    tripLayersRef.current = [casing, line, start];
+    const stops = tripStops.map((st) =>
+      L.circleMarker([st.latitude, st.longitude], { radius: 8, color: '#ffffff', weight: 3, fillColor: '#F59E0B', fillOpacity: 1 })
+        .bindTooltip(`Stopped ${Math.max(5, Math.round(st.durationSeconds / 60))} min · ${new Date(st.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+        .addTo(map),
+    );
+    tripLayersRef.current = [casing, line, start, ...stops];
     if (tripFitRef.current !== activeTruckId) {
       tripFitRef.current = activeTruckId;
       map.fitBounds(line.getBounds(), { padding: [60, 60], maxZoom: 16 });
     }
     return undefined;
-  }, [tripRoute, activeTruckId]);
+  }, [tripRoute, tripStops, activeTruckId]);
 
   // A pin where the truck last stood still (when that is not where it is now).
   useEffect(() => {

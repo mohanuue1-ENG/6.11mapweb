@@ -7,6 +7,8 @@ import { requireRole } from '../middleware/auth.js';
 import { uuid, email, strongPassword, requiredText, nullableText, buildUpdate } from '../validation.js';
 import { audit } from '../services/audit.js';
 import { toPlan, toSubscription, SUBSCRIPTION_SELECT } from './billing.js';
+import { RISK_ACTIONS, riskOf } from '../services/risk.js';
+import { revokeAllForUser } from '../services/tokens.js';
 
 const isoDate = z.string().datetime({ offset: true });
 const LIVE = `('trialing', 'active', 'past_due', 'suspended')`;
@@ -80,6 +82,7 @@ const paymentSchema = z
 const auditQuery = z.object({
   companyId: uuid.optional(),
   action: z.string().trim().min(1).max(80).optional(),
+  risk: z.enum(['high', 'medium', 'low']).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -339,6 +342,140 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
     }),
   );
 
+  // ---- Notifications for the platform owner. Built from what already exists: new access requests, reviews to approve,
+  // new companies, payments and plans that need attention. The page keeps its own "seen" time.
+  router.get(
+    '/notifications',
+    asyncHandler(async (req, res) => {
+      const out = [];
+      const money = (c, cur) => `${(cur || 'USD').toUpperCase() === 'USD' ? '$' : ''}${(c / 100).toFixed(2)}`;
+      const push = (rows, f) => rows.forEach((r) => out.push(f(r)));
+      push(
+        (await db.query(`SELECT id, company_name, contact_name, created_at FROM registration_requests WHERE status = 'pending' ORDER BY created_at DESC LIMIT 50`)).rows,
+        (r) => ({ id: `req-${r.id}`, type: 'request', severity: 'warning', title: 'New access request', message: `${r.company_name} (${r.contact_name}) is waiting for approval.`, link: '/superadmin/requests', createdAt: r.created_at }),
+      );
+      push(
+        (await db.query(`SELECT r.id, r.rating, r.updated_at, c.name AS company_name FROM reviews r JOIN companies c ON c.id = r.company_id WHERE r.status = 'pending' ORDER BY r.updated_at DESC LIMIT 50`)).rows,
+        (r) => ({ id: `rev-${r.id}`, type: 'review', severity: 'info', title: 'Review to approve', message: `${r.company_name} wrote a ${r.rating}-star review.`, link: '/superadmin/reviews', createdAt: r.updated_at }),
+      );
+      push(
+        (await db.query(`SELECT s.id, s.updated_at, c.name AS company_name FROM subscriptions s JOIN companies c ON c.id = s.company_id WHERE s.status = 'past_due' ORDER BY s.updated_at DESC LIMIT 50`)).rows,
+        (r) => ({ id: `due-${r.id}`, type: 'payment_failed', severity: 'critical', title: 'Payment failed', message: `${r.company_name}'s last payment did not go through.`, link: '/superadmin/companies', createdAt: r.updated_at }),
+      );
+      push(
+        (await db.query(`SELECT p.id, p.amount_cents, p.currency, p.created_at, c.name AS company_name FROM payments p JOIN companies c ON c.id = p.company_id WHERE p.status = 'succeeded' AND p.created_at > now() - interval '14 days' ORDER BY p.created_at DESC LIMIT 50`)).rows,
+        (r) => ({ id: `pay-${r.id}`, type: 'payment', severity: 'info', title: 'Payment received', message: `${r.company_name} paid ${money(r.amount_cents, r.currency)}.`, link: '/superadmin/payments', createdAt: r.created_at }),
+      );
+      push(
+        (await db.query(`SELECT id, name, created_at FROM companies WHERE created_at > now() - interval '14 days' ORDER BY created_at DESC LIMIT 50`)).rows,
+        (r) => ({ id: `co-${r.id}`, type: 'company', severity: 'info', title: 'New company', message: `${r.name} created an account.`, link: '/superadmin/companies', createdAt: r.created_at }),
+      );
+      out.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      res.json({ notifications: out.slice(0, 100) });
+    }),
+  );
+
+  // ---- Users: every person on the platform. Search, see where they belong, block or open an account.
+  router.get(
+    '/users',
+    asyncHandler(async (req, res) => {
+      const q = parse(
+        z.object({
+          search: z.string().trim().max(100).optional(),
+          role: z.enum(['SUPER_ADMIN', 'COMPANY_ADMIN', 'DISPATCHER', 'DRIVER']).optional(),
+          status: z.enum(['active', 'disabled']).optional(),
+        }),
+        req.query,
+      );
+      const { rows } = await db.query(
+        `SELECT u.id, u.name, u.email, u.phone, u.role, u.status, u.blocked_at, u.failed_logins, u.created_at, u.company_id, c.name AS company_name,
+                (SELECT max(a.created_at) FROM audit_logs a WHERE a.actor_user_id = u.id AND a.action = 'LOGIN_SUCCESS') AS last_login_at
+           FROM users u LEFT JOIN companies c ON c.id = u.company_id
+          WHERE ($1::text IS NULL OR u.name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%' OR u.phone ILIKE '%' || $1 || '%' OR c.name ILIKE '%' || $1 || '%')
+            AND ($2::text IS NULL OR u.role = $2) AND ($3::text IS NULL OR u.status = $3)
+          ORDER BY u.created_at DESC LIMIT 300`,
+        [q.search || null, q.role ?? null, q.status ?? null],
+      );
+      res.json({
+        users: rows.map((r) => ({
+          id: r.id, name: r.name, email: r.email, phone: r.phone, role: r.role, status: r.status,
+          blocked: r.blocked_at != null, failedLogins: r.failed_logins, createdAt: r.created_at, lastLoginAt: r.last_login_at,
+          companyId: r.company_id, companyName: r.company_name,
+        })),
+      });
+    }),
+  );
+  router.post(
+    '/users/:id/status',
+    asyncHandler(async (req, res) => {
+      const id = parse(uuid, req.params.id);
+      const { status } = parse(z.object({ status: z.enum(['active', 'disabled']) }).strict(), req.body);
+      const target = (await db.query('SELECT id, role, company_id FROM users WHERE id = $1', [id])).rows[0];
+      if (!target) throw notFound('User not found');
+      if (target.role === 'SUPER_ADMIN') throw conflict('A platform owner account cannot be blocked here.');
+      await db.tx(async (q) => {
+        if (status === 'disabled') {
+          await q.query(`UPDATE users SET status = 'disabled', updated_at = now() WHERE id = $1`, [id]);
+          await revokeAllForUser(q, id);
+        } else {
+          await q.query(`UPDATE users SET status = 'active', blocked_at = NULL, failed_logins = 0, updated_at = now() WHERE id = $1`, [id]);
+        }
+        await audit(q, { companyId: target.company_id, actorUserId: req.auth.userId, action: 'USER_STATUS_CHANGED', details: { userId: id, status }, ip: req.ip });
+      });
+      res.status(204).end();
+    }),
+  );
+
+  // ---- Accounts that blocked themselves after too many wrong passwords; the owner can open them again.
+  router.get(
+    '/blocked-users',
+    asyncHandler(async (req, res) => {
+      const { rows } = await db.query(
+        `SELECT u.id, u.name, u.email, u.role, u.blocked_at, c.name AS company_name FROM users u LEFT JOIN companies c ON c.id = u.company_id
+          WHERE u.blocked_at IS NOT NULL AND u.status = 'disabled' ORDER BY u.blocked_at DESC LIMIT 100`,
+      );
+      res.json({ users: rows.map((r) => ({ id: r.id, name: r.name, email: r.email, role: r.role, companyName: r.company_name, blockedAt: r.blocked_at })) });
+    }),
+  );
+  router.post(
+    '/blocked-users/:id/unblock',
+    asyncHandler(async (req, res) => {
+      const id = parse(uuid, req.params.id);
+      const { rows } = await db.query(
+        `UPDATE users SET status = 'active', blocked_at = NULL, failed_logins = 0, updated_at = now() WHERE id = $1 AND blocked_at IS NOT NULL RETURNING id, company_id`,
+        [id],
+      );
+      if (!rows[0]) throw notFound('This account is not blocked');
+      await audit(db, { companyId: rows[0].company_id, actorUserId: req.auth.userId, action: 'ACCOUNT_UNBLOCKED', details: { userId: id }, ip: req.ip });
+      res.status(204).end();
+    }),
+  );
+
+  // ---- Audit summary: how much happened at each risk level, and who keeps failing to sign in.
+  router.get(
+    '/audit-summary',
+    asyncHandler(async (req, res) => {
+      const days = parse(z.coerce.number().int().min(1).max(90).default(7), req.query.days);
+      const counts = (await db.query(`SELECT action, count(*)::int AS n FROM audit_logs WHERE created_at > now() - ($1::int * interval '1 day') GROUP BY action`, [days])).rows;
+      const totals = { high: 0, medium: 0, low: 0 };
+      counts.forEach((r) => (totals[riskOf(r.action)] += r.n));
+      // The same address failing 5 or more times in the last 24 hours looks like someone guessing passwords.
+      const failing = (
+        await db.query(
+          `SELECT ip_address, count(*)::int AS n, max(created_at) AS last_at FROM audit_logs
+            WHERE action = 'LOGIN_FAILED' AND created_at > now() - interval '24 hours' AND ip_address IS NOT NULL
+            GROUP BY ip_address HAVING count(*) >= 5 ORDER BY n DESC LIMIT 10`,
+        )
+      ).rows;
+      res.json({
+        days,
+        totals,
+        byAction: counts.map((r) => ({ action: r.action, risk: riskOf(r.action), count: r.n })).sort((a, b) => b.count - a.count).slice(0, 12),
+        suspiciousIps: failing.map((r) => ({ ip: r.ip_address, failedLogins: r.n, lastAt: r.last_at })),
+      });
+    }),
+  );
+
   // ---- Audit log
   router.get(
     '/audit-logs',
@@ -352,6 +489,8 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
       };
       if (f.companyId) add('a.company_id = ?', f.companyId);
       if (f.action) add('a.action = ?', f.action);
+      if (f.risk === 'high' || f.risk === 'medium') add('a.action = ANY(?::text[])', RISK_ACTIONS[f.risk]);
+      if (f.risk === 'low') add('NOT (a.action = ANY(?::text[]))', [...RISK_ACTIONS.high, ...RISK_ACTIONS.medium]);
       if (f.from) add('a.created_at >= ?', new Date(f.from));
       if (f.to) add('a.created_at <= ?', new Date(f.to));
       params.push(f.limit + 1, f.offset);
@@ -369,6 +508,7 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
         logs: rows.slice(0, f.limit).map((r) => ({
           id: r.id,
           action: r.action,
+          risk: riskOf(r.action),
           details: r.details,
           ipAddress: r.ip_address,
           createdAt: r.created_at,

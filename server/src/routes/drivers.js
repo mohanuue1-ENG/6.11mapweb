@@ -69,7 +69,7 @@ const COLUMNS = {
 // /drivers — a Company Admin's own drivers, always scoped by req.auth.companyId.
 export function driverRoutes({ db, config, authenticate }) {
   const router = Router();
-  router.use(authenticate, requireRole('COMPANY_ADMIN'));
+  router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
   const findOne = async (q, companyId, id) => {
     const { rows } = await q.query(`${SELECT} WHERE d.company_id = $1 AND d.id = $2`, [companyId, id]);

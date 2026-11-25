@@ -5,6 +5,8 @@ import { useAutoClose } from '../../hooks/useAutoClose';
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import ChangePasswordModal from '../common/ChangePasswordModal';
+import PaymentBanner from '../common/PaymentBanner';
+import { usePlatformUnread } from '../common/platformNotifications';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -36,12 +38,15 @@ import {
   Inbox,
   KeyRound,
   User,
-  MoreHorizontal } from 'lucide-react';
+  MoreHorizontal, Package, UserCog, MessageSquareQuote, Fuel } from 'lucide-react';
 
 export default function DashboardLayout({ children }) {
-  const { user, isSuperAdmin, isCompanyAdmin, logout, switchRole } = useAuth();
+  const { user, isSuperAdmin, isCompanyAdmin, isOwner, hasLoadova, hasTrackova, logout, switchRole } = useAuth();
   const { theme, themeSetting, setThemeSetting } = useTheme();
-  const { unreadCount, liveStatus } = useGps();
+  const { unreadCount: companyUnread } = useGps();
+  const platformUnread = usePlatformUnread(isSuperAdmin);
+  const unreadCount = isSuperAdmin ? platformUnread : companyUnread;
+  const notificationsPath = isSuperAdmin ? '/superadmin/notifications' : '/company/notifications';
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -78,14 +83,15 @@ export default function DashboardLayout({ children }) {
   // PRD Section 9.3 Company Admin Sidebar Items
   const companyNav = [
     { group: 'Operations', label: 'Dashboard', path: '/company/dashboard', icon: LayoutDashboard },
-    { label: 'Live Tracking', path: '/company/live-tracking', icon: Navigation, badge: 'LIVE' },
-    { label: 'Trips', path: '/company/trips', icon: Route },
-    { more: true, label: 'GPS History', path: '/company/gps-history', icon: Radio },
+    ...(hasLoadova ? [{ label: 'Loads', path: '/company/loads', icon: Package }, { label: 'Fuel', path: '/company/fuel', icon: Fuel }] : []),
+    ...(hasTrackova ? [{ label: 'Live Tracking', path: '/company/live-tracking', icon: Navigation, badge: 'LIVE' }, { label: 'Trips', path: '/company/trips', icon: Route }] : []),
+    ...(hasTrackova ? [{ more: true, label: 'GPS History', path: '/company/gps-history', icon: Radio }] : []),
     { group: 'Fleet', label: 'Trucks', path: '/company/trucks', icon: Truck },
     { label: 'Drivers', path: '/company/drivers', icon: Users },
+    ...(isOwner ? [{ label: 'Team', path: '/company/team', icon: UserCog }] : []),
     { more: true, label: 'Reports', path: '/company/reports', icon: BarChart3 },
     { more: true, label: 'Notifications', path: '/company/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : null },
-    { more: true, label: 'Company & Plan', path: '/company/profile', icon: Building2 },
+    ...(isOwner ? [{ more: true, label: 'Company & Plan', path: '/company/profile', icon: Building2 }] : []),
   ];
 
   // PRD Section 9.9 Super Admin Sidebar Items
@@ -93,8 +99,10 @@ export default function DashboardLayout({ children }) {
     { group: 'Platform', label: 'Dashboard', path: '/superadmin', icon: LayoutDashboard },
     { label: 'Requests', path: '/superadmin/requests', icon: Inbox, badge: pendingRequests > 0 ? pendingRequests : null },
     { label: 'Companies', path: '/superadmin/companies', icon: Building2 },
+    { label: 'Users', path: '/superadmin/users', icon: Users },
     { more: true, label: 'Plans', path: '/superadmin/plans', icon: CreditCard },
     { more: true, label: 'Payments', path: '/superadmin/payments', icon: DollarSign },
+    { more: true, label: 'Reviews', path: '/superadmin/reviews', icon: MessageSquareQuote },
     { more: true, label: 'Security & Audit', path: '/superadmin/audit-logs', icon: Lock },
   ];
 
@@ -234,23 +242,6 @@ export default function DashboardLayout({ children }) {
           </button>
         </div>
 
-        {/* Live Tracking Telemetry Pill in Sidebar */}
-        <div className={`px-3 py-2 border-b shrink-0 ${menuOpen ? '' : 'lg:hidden'} ${isDark ? 'border-white/5' : 'border-[#E5E7EB]'}`}>
-          <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[11px] font-numbers ${
-            isDark
-              ? 'bg-dark-surface2 border-white/10 text-gray-300'
-              : 'bg-[#F9FAFB] border-[#E5E7EB] text-gray-700'
-          }`}>
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-              </span>
-              <span className="font-medium">{isSuperAdmin ? "Administration" : "Live connection"}</span>
-            </div>
-            <span className={"font-bold " + (isSuperAdmin ? "text-gray-400" : liveStatus === "live" ? "text-[#22C55E]" : "text-[#F59E0B]")}>{isSuperAdmin ? "PLATFORM" : liveStatus === "live" ? "LIVE" : liveStatus === "offline" ? "NOT CONNECTED" : "RECONNECTING"}</span>
-          </div>
-        </div>
-
         {/* Navigation Links */}
         <nav className="relative flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden fade-edges-y">
           {coreNav.map((item, i) => renderNavItem(item, i, coreNav))}
@@ -351,7 +342,7 @@ export default function DashboardLayout({ children }) {
           <div className="flex items-center gap-2.5">
             {/* Notifications Bell */}
             <Link
-              to="/company/notifications"
+              to={notificationsPath}
               className={`hit relative p-2.5 rounded-xl border transition-colors ${
                 isDark
                   ? 'bg-dark-surface2 border-white/10 text-gray-300 hover:text-white'
@@ -424,6 +415,7 @@ export default function DashboardLayout({ children }) {
 
         {/* MAIN DASHBOARD CONTENT */}
         <main className="flex-1 w-full lg:w-auto lg:m-3 lg:rounded-2xl lg:border lg:border-line tray p-4 sm:p-6 lg:p-8">
+          {isOwner && <PaymentBanner />}
           {children}
         </main>
       </div>

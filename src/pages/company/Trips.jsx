@@ -132,7 +132,7 @@ export default function Trips() {
                 )}
                 {data?.trips.map((t) => (
                   <tr key={t.id} className={isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}>
-                    <td className="py-3.5 px-4 font-bold text-brand-green">{t.id.slice(0, 8)}</td>
+                    <td className="py-3.5 px-4 font-bold text-brand-green">{t.loadNumber ? `Load #${t.loadNumber}` : t.id.slice(0, 8)}</td>
                     <td className="py-3.5 px-4 font-semibold">#{t.truck.truckNumber}</td>
                     <td className="py-3.5 px-4">{t.driver.name}</td>
                     <td className="py-3.5 px-4">{dateTime(t.startedAt)}</td>

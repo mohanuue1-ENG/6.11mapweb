@@ -199,3 +199,69 @@ test('when Loadova is available, a plan for both gives both products', async () 
     await ctx2.db.close();
   }
 });
+
+
+test('loads are only for companies whose plan includes Loadova', async () => {
+  const c = await newCompany();
+  const checkout = await as(c.session).post('/payments/checkout', { planId: plan.id });
+  await ctx.api().post(`${V1}/signup/mock/complete`).send({ session: checkout.body.sessionId });
+  // A Trackova plan opens the fleet but not the loads.
+  assert.equal((await as(c.session).get('/trucks')).status, 200);
+  const res = await as(c.session).get('/loads');
+  assert.equal(res.status, 402);
+  assert.equal(res.body.error.code, 'PRODUCT_REQUIRED');
+});
+
+test('a failed payment keeps the dashboard open for 7 days after the period ended, and the owner can open the page to update the card', async () => {
+  const c = await newCompany();
+  const res = await as(c.session).post('/payments/checkout', { planId: plan.id });
+  await ctx.api().post(`${V1}/signup/mock/complete`).send({ session: res.body.sessionId });
+  assert.equal((await as(c.session).get('/trucks')).status, 200);
+
+  // The card failed 2 days ago: still open.
+  await ctx.db.query(`UPDATE subscriptions SET status = 'past_due', current_period_end = now() - interval '2 days' WHERE company_id = $1`, [c.user.companyId ?? (await ctx.db.query(`SELECT company_id FROM users WHERE email = $1`, [c.email])).rows[0].company_id]);
+  assert.equal((await as(c.session).get('/trucks')).status, 200);
+  // The owner can open the page to update the card.
+  const portal = await as(c.session).post('/billing/portal', {});
+  assert.equal(portal.status, 200, JSON.stringify(portal.body));
+  assert.ok(portal.body.url);
+
+  // 8 days after the period ended: closed.
+  await ctx.db.query(`UPDATE subscriptions SET current_period_end = now() - interval '8 days' WHERE status = 'past_due' AND company_id = (SELECT company_id FROM users WHERE email = $1)`, [c.email]);
+  assert.equal((await as(c.session).get('/trucks')).status, 402);
+});
+
+test('10 wrong passwords in a row block the account by themselves, and the owner can open it again', async () => {
+  const c = await newCompany();
+  const bad = () => ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: c.email, password: 'Wrong-Pass-1x' });
+  for (let i = 0; i < 9; i += 1) assert.equal((await bad()).status, 401);
+  // The 9th miss has not blocked yet: the right password still works and starts the count again.
+  const ok = await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: c.email, password: c.password });
+  assert.equal(ok.status, 200);
+  for (let i = 0; i < 10; i += 1) assert.equal((await bad()).status, 401);
+  // Now blocked: even the right password is refused.
+  const blocked = await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: c.email, password: c.password });
+  assert.equal(blocked.status, 403);
+  const list = (await as(root).get('/admin/blocked-users')).body.users;
+  const mine = list.find((u) => u.email === c.email);
+  assert.ok(mine);
+  assert.equal((await as(root).post(`/admin/blocked-users/${mine.id}/unblock`, {})).status, 204);
+  const again = await ctx.api().post(`${V1}/auth/login`).set('X-Client-Type', 'mobile').send({ email: c.email, password: c.password });
+  assert.equal(again.status, 200);
+});
+
+test('10 failed payments in a row block the company by themselves; a paid invoice starts the count again', async () => {
+  const { handleStripeEvent } = await import('../src/services/stripeEvents.js');
+  const c = await newCompany();
+  const res = await as(c.session).post('/payments/checkout', { planId: plan.id });
+  await ctx.api().post(`${V1}/signup/mock/complete`).send({ session: res.body.sessionId });
+  const companyId = (await ctx.db.query(`SELECT company_id FROM users WHERE email = $1`, [c.email])).rows[0].company_id;
+  await ctx.db.query(`UPDATE subscriptions SET provider_subscription_id = $2 WHERE company_id = $1`, [companyId, `sub_${companyId}`]);
+  const deps = { db: ctx.db, config: { maxFailedPayments: 10 } };
+  const failed = () => handleStripeEvent(deps, { type: 'invoice.payment_failed', data: { object: { subscription: `sub_${companyId}` } } });
+  for (let i = 0; i < 9; i += 1) assert.equal((await failed()).result, 'past_due');
+  assert.equal((await as(c.session).get('/trucks')).status, 200);
+  assert.equal((await failed()).result, 'blocked');
+  assert.equal((await ctx.db.query('SELECT status FROM companies WHERE id = $1', [companyId])).rows[0].status, 'suspended');
+  assert.equal((await as(c.session).get('/trucks')).status, 403);
+});

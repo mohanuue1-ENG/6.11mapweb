@@ -297,3 +297,39 @@ test('a super admin can create a company with its first admin, who can then sign
   assert.equal((await as(root).post('/admin/companies', { ...body, email: 'x@example.test', password: 'short' })).status, 400);
   assert.equal((await as(root).post('/admin/companies', { ...body, email: 'y@example.test', status: 'active' })).status, 400);
 });
+
+test('the platform owner has a notifications list, and companies do not', async () => {
+  const res = await ctx.api().get('/api/v1/admin/notifications').set(bearer(root));
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.ok(Array.isArray(res.body.notifications));
+  assert.equal((await ctx.api().get('/api/v1/admin/notifications').set(bearer(a))).status, 403);
+});
+
+test('the audit log tells how risky each action is and summarises it', async () => {
+  const logs = (await as(root).get('/admin/audit-logs?limit=500')).body.logs;
+  assert.ok(logs.length > 0);
+  for (const l of logs) assert.ok(['high', 'medium', 'low'].includes(l.risk));
+  const high = (await as(root).get('/admin/audit-logs?risk=high&limit=500')).body.logs;
+  assert.ok(high.every((l) => l.risk === 'high'));
+  const low = (await as(root).get('/admin/audit-logs?risk=low&limit=500')).body.logs;
+  assert.ok(low.every((l) => l.risk === 'low'));
+  const sum = (await as(root).get('/admin/audit-summary')).body;
+  assert.equal(sum.days, 7);
+  assert.ok(sum.totals.high + sum.totals.medium + sum.totals.low > 0);
+  assert.ok(Array.isArray(sum.suspiciousIps));
+});
+
+test('the platform owner can find any user and block or open an account', async () => {
+  const all = (await as(root).get('/admin/users')).body.users;
+  assert.ok(all.length > 0);
+  const dispatcherOrAdmin = all.find((u) => u.role === 'COMPANY_ADMIN');
+  assert.ok(dispatcherOrAdmin);
+  const found = (await as(root).get(`/admin/users?search=${encodeURIComponent(dispatcherOrAdmin.email)}`)).body.users;
+  assert.ok(found.some((u) => u.id === dispatcherOrAdmin.id));
+  assert.equal((await as(root).post(`/admin/users/${dispatcherOrAdmin.id}/status`, { status: 'disabled' })).status, 204);
+  assert.equal((await as(root).get('/admin/users?status=disabled')).body.users.some((u) => u.id === dispatcherOrAdmin.id), true);
+  assert.equal((await as(root).post(`/admin/users/${dispatcherOrAdmin.id}/status`, { status: 'active' })).status, 204);
+  const owner = all.find((u) => u.role === 'SUPER_ADMIN');
+  assert.equal((await as(root).post(`/admin/users/${owner.id}/status`, { status: 'disabled' })).status, 409);
+  assert.equal((await as(a).get('/admin/users')).status, 403);
+});

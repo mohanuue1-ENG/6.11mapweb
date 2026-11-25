@@ -8,6 +8,7 @@ import { requireRole } from '../middleware/auth.js';
 import { uuid } from '../validation.js';
 import { resolveDriver, ingestBatch, toLocation } from '../services/gps.js';
 import { findLastStop } from '../services/stops.js';
+import { checkTripStop } from '../services/trips.js';
 
 const isoDate = z.string().datetime({ offset: true });
 const historyQuery = z.object({
@@ -41,14 +42,23 @@ export function gpsRoutes({ db, config, authenticate, events, geocoder }) {
         throw badRequest(`A batch can hold at most ${config.gpsMaxBatchSize} locations`);
       }
 
+      let driverId = null;
       const result = await db.tx(async (q) => {
         const driver = await resolveDriver(q, req.auth);
+        driverId = driver.id;
         return ingestBatch(q, config, {
           companyId: req.auth.companyId,
           driverId: driver.id,
           locations: body.locations,
         });
       });
+
+      // A truck that has stood still for 5 minutes during a trip tells the administrator (once). Never blocks the upload.
+      try {
+        await checkTripStop(db, { companyId: req.auth.companyId, driverId });
+      } catch (err) {
+        console.error('[stops] check failed:', err.message);
+      }
 
       // Persisted first, announced second (PRD section 7).
       for (const location of result.latest) {
@@ -67,7 +77,7 @@ export function gpsRoutes({ db, config, authenticate, events, geocoder }) {
   // GET /gps/locations/current — latest known position of every truck in the company.
   router.get(
     '/locations/current',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const { rows } = await db.query(
         `SELECT c.* FROM current_locations c WHERE c.company_id = $1 ORDER BY c.gps_timestamp DESC`,
@@ -81,7 +91,7 @@ export function gpsRoutes({ db, config, authenticate, events, geocoder }) {
   // place is null when the lookup is switched off or fails; the dashboard then shows coordinates.
   router.get(
     '/geocode',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const q = parse(z.object({ lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) }), req.query);
       res.json({ place: (await geocoder?.reverse(q.lat, q.lng)) ?? null });
@@ -91,7 +101,7 @@ export function gpsRoutes({ db, config, authenticate, events, geocoder }) {
   // GET /gps/trucks/:truckId/activity — where the truck last stood still, from the last 24 hours of points.
   router.get(
     '/trucks/:truckId/activity',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const truckId = parse(uuid, req.params.truckId);
       const truck = await db.query('SELECT 1 FROM trucks WHERE company_id = $1 AND id = $2', [req.auth.companyId, truckId]);
@@ -124,7 +134,7 @@ export function gpsRoutes({ db, config, authenticate, events, geocoder }) {
   // GET /gps/history — stored points, newest first, filtered by truck, driver, trip and time.
   router.get(
     '/history',
-    requireRole('COMPANY_ADMIN'),
+    requireRole('COMPANY_ADMIN', 'DISPATCHER'),
     asyncHandler(async (req, res) => {
       const f = parse(historyQuery, req.query);
       const where = ['h.company_id = $1'];

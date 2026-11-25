@@ -31,7 +31,7 @@ export function attachRealtime(httpServer, { db, config, events }) {
       const { userId, expiresAt } = verifyAccessTokenDetailed(config, token);
       const user = await loadUser(db, userId);
       assertAccountUsable(user);
-      if (user.role !== 'COMPANY_ADMIN') throw Object.assign(new Error(), { code: 'FORBIDDEN' });
+      if (user.role !== 'COMPANY_ADMIN' && user.role !== 'DISPATCHER') throw Object.assign(new Error(), { code: 'FORBIDDEN' });
       socket.data.userId = user.id;
       socket.data.companyId = user.company_id;
       socket.data.expiresAt = expiresAt;

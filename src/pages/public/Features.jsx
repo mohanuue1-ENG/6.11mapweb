@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { FEATURES, wrap } from './Home';
+import FeatureCarousel from '../../components/common/FeatureCarousel';
 
 const DETAILS = {
   'Live map': ['Position, speed and time of the last GPS update', 'Current, stale and offline trucks are shown differently', 'Day, satellite and night map styles'],
@@ -12,13 +13,16 @@ const DETAILS = {
   'Private by design': ['Separate data for every company', 'Drivers see only their own truck and trips', 'Sign-ins and admin actions are logged'],
 };
 
-export default function Features() {
+export default function Features({ embedded = false }) {
+  if (embedded) return <FeatureCarousel items={FEATURES.map((f) => ({ ...f, details: DETAILS[f.title] }))} />;
   return (
-    <div className={`${wrap} py-14 space-y-10`}>
-      <div className="max-w-2xl space-y-2">
-        <h1 className="text-4xl font-extrabold tracking-tight">Features</h1>
-        <p className="text-mute text-lg">The tools your office and your drivers use every day.</p>
-      </div>
+    <div className={embedded ? 'pt-10 space-y-10' : `${wrap} py-14 space-y-10`}>
+      {!embedded && (
+        <div className="max-w-2xl space-y-2">
+          <h1 className="text-4xl font-extrabold tracking-tight">Features</h1>
+          <p className="text-mute text-lg">The tools your office and your drivers use every day.</p>
+        </div>
+      )}
       <div className="grid md:grid-cols-2 gap-5">
         {FEATURES.map(({ title, text }) => (
           <div key={title} className="p-6 rounded-xl border border-line bg-surface">
@@ -32,9 +36,9 @@ export default function Features() {
           </div>
         ))}
       </div>
-      <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
+      {!embedded && <Link to="/create-account" className="h-12 px-6 inline-flex items-center gap-2 rounded-lg bg-brand-green text-[#052E16] font-semibold hover:bg-brand-green-hover transition-colors">
         Create account <ArrowRight className="w-4 h-4" />
-      </Link>
+      </Link>}
     </div>
   );
 }

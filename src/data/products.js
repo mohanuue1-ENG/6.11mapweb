@@ -6,7 +6,7 @@ export const PRODUCT_CARDS = {
     tag: 'Loads only',
     name: 'Loadova',
     sub: 'Run your loads, drivers and money in one place.',
-    features: ['Load tracking with Cash In', 'Driver and truck management', 'Fuel transactions and the Funding Fee', 'Weekly, monthly and 3-month reports', 'Invoices to print or save as PDF'],
+    features: ['Load tracking with Cash In', 'Driver and truck management', 'Fuel records with totals', 'Pick up and drop off for every load', 'Roles for the owner, dispatchers and drivers'],
     cta: 'Get Loadova',
   },
   trackova: {
