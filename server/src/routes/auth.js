@@ -152,6 +152,13 @@ export function authRoutes({ db, config, authenticate, mailer, googleVerify }) {
       to,
       subject: `Your ${brand} code`,
       text: [`Your ${brand} code is ${code}`, '', `It works once and expires in ${config.codeTtlMinutes} minutes.`, 'If you did not ask for it, ignore this email.'].join('\n'),
+      // The same code, one big box for each digit, easy to read and to copy.
+      html: `<div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;background:#26272b;border-radius:20px;color:#e8e8ea">
+        <p style="margin:0 0 16px;font-size:16px;color:#c9c9cf">Your ${brand} code</p>
+        <div style="margin:0 0 16px">${String(code).split('').map((d) => `<span style="display:inline-block;width:40px;height:54px;line-height:54px;margin:0 4px 0 0;text-align:center;font-size:32px;font-weight:bold;background:#1a1b1e;border-radius:8px;color:#f3f3f5">${d}</span>`).join('')}</div>
+        <p style="margin:0 0 6px;font-size:13px;color:#a1a1a8">Touch and hold the digits to copy the code: <strong style="color:#e8e8ea;letter-spacing:3px">${code}</strong></p>
+        <p style="margin:0;font-size:13px;color:#a1a1a8">It works once and expires in ${config.codeTtlMinutes} minutes. If you did not ask for it, ignore this email.</p>
+      </div>`,
     });
     if (!mail.sent) {
       throw new HttpError(502, 'EMAIL_FAILED', 'We could not send the email right now. Try again in a moment, or contact your company.');

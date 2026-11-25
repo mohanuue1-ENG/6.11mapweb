@@ -175,6 +175,20 @@ export function driverSelfRoutes({ db, authenticate }) {
   const router = Router();
   router.use(authenticate, requireRole('DRIVER'));
 
+  // POST /driver/push-token: the phone says where to send reminders. The same phone can register again and again.
+  router.post(
+    '/push-token',
+    asyncHandler(async (req, res) => {
+      const { token } = parse(z.object({ token: z.string().trim().min(10).max(300).regex(/^(Expo|Exponent)PushToken\[.+\]$/) }).strict(), req.body);
+      await db.query(
+        `INSERT INTO push_tokens (user_id, token) VALUES ($1, $2)
+         ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, updated_at = now()`,
+        [req.auth.userId, token],
+      );
+      res.status(204).end();
+    }),
+  );
+
   router.get(
     '/me',
     asyncHandler(async (req, res) => {

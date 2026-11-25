@@ -66,7 +66,7 @@ const COLUMNS = {
 };
 
 // /loads: the dispatcher and the owner write the loads and give them to drivers.
-export function loadRoutes({ db, authenticate }) {
+export function loadRoutes({ db, authenticate, pusher }) {
   const router = Router();
   router.use(authenticate, requireRole('COMPANY_ADMIN', 'DISPATCHER'));
 
@@ -92,6 +92,24 @@ export function loadRoutes({ db, authenticate }) {
     }),
   );
 
+  // The driver's phone gets a reminder when a load is given to them, with a button to start the trip straight away.
+  const remind = async (loadId, driverId) => {
+    if (!pusher || !driverId) return;
+    const row = (
+      await db.query(
+        `SELECT l.load_number, l.pickup_location, l.dropoff_location, d.user_id FROM loads l JOIN drivers d ON d.id = l.driver_id WHERE l.id = $1 AND d.id = $2`,
+        [loadId, driverId],
+      )
+    ).rows[0];
+    if (!row?.user_id) return;
+    const route = [row.pickup_location, row.dropoff_location].filter(Boolean).join(' → ');
+    await pusher.send(db, row.user_id, {
+      title: `New load #${row.load_number}`,
+      body: route ? `${route}. Tap Start trip when you are ready.` : 'Tap Start trip when you are ready.',
+      data: { type: 'load', loadId, category: 'load', route },
+    });
+  };
+
   router.post(
     '/',
     asyncHandler(async (req, res) => {
@@ -109,6 +127,7 @@ export function loadRoutes({ db, authenticate }) {
         return (await q.query(`${SELECT} WHERE l.id = $1`, [rows[0].id])).rows[0];
       });
       res.status(201).json({ load: toLoad(row) });
+      if (row.driver_id) remind(row.id, row.driver_id).catch(() => {});
     }),
   );
 
@@ -119,6 +138,7 @@ export function loadRoutes({ db, authenticate }) {
       const input = parse(updateSchema, req.body);
       const keys = Object.keys(input);
       if (!keys.length) throw badRequest('No fields to update');
+      const before = (await db.query('SELECT driver_id FROM loads WHERE id = $1 AND company_id = $2', [id, req.auth.companyId])).rows[0];
       const row = await db.tx(async (q) => {
         await checkRefs(q, req.auth.companyId, input);
         const sets = keys.map((k, i) => `${COLUMNS[k]} = $${i + 3}`);
@@ -130,6 +150,7 @@ export function loadRoutes({ db, authenticate }) {
         return (await q.query(`${SELECT} WHERE l.id = $1`, [id])).rows[0];
       });
       res.json({ load: toLoad(row) });
+      if (row.driver_id && row.driver_id !== before?.driver_id) remind(row.id, row.driver_id).catch(() => {});
     }),
   );
 

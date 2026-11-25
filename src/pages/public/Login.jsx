@@ -1,3 +1,4 @@
+import CodeInput from '../../components/common/CodeInput';
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { AlertCircle, Loader2, Lock, Mail } from 'lucide-react';
@@ -120,17 +121,7 @@ export default function Login() {
           )}
           <div>
             <label htmlFor="login-code" className="block text-sm font-medium mb-1.5">6-digit code</label>
-            <input
-              id="login-code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              required
-              autoFocus
-              placeholder="123456"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full h-12 rounded-lg border border-line bg-surface text-ink placeholder:text-mute px-4 text-center text-xl tracking-[0.4em] focus:outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/25 transition"
-            />
+            <CodeInput id="login-code" value={code} onChange={setCode} autoFocus />
           </div>
           <label className="flex items-center gap-2 text-sm text-mute">
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="rounded border-line" />

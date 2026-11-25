@@ -21,13 +21,13 @@ export function createMailer(config) {
 
   return {
     configured: !!transport,
-    async send({ to, subject, text }) {
+    async send({ to, subject, text, html }) {
       if (!transport) {
         console.log(`[mail] not sent (SMTP not configured): to=${to} subject="${subject}"`);
         return { sent: false };
       }
       try {
-        await transport.sendMail({ from: config.mailFrom, to, subject, text });
+        await transport.sendMail({ from: config.mailFrom, to, subject, text, html });
         return { sent: true };
       } catch (err) {
         // The caller carries on: a mail failure must never undo an approval.

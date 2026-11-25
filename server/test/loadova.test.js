@@ -177,3 +177,27 @@ test('a truck that stands still for 5 minutes during a trip tells the administra
   }
   assert.equal(await checkTripStop(ctx.db, { companyId: admin.companyId, driverId: g.driver.id }), null);
 });
+
+test('a driver gets a reminder on the phone when a load is given to them', async () => {
+  const sent = [];
+  const pusher = { enabled: true, send: async (_db, userId, msg) => (sent.push({ userId, ...msg }), { sent: 1 }) };
+  const c = await createTestContext({}, { pusher });
+  const boss = await c.registerCompany('Remind Co');
+  const f = await makeFleet(c, boss, 'R');
+  const call = (m, p, b) => c.api()[m](V1 + p).set(bearer(boss)).send(b);
+  // The phone registers itself.
+  const token = 'ExponentPushToken[abc123abc123]';
+  assert.equal((await c.api().post(V1 + '/driver/push-token').set(bearer(f.session)).send({ token })).status, 204);
+  assert.equal((await c.api().post(V1 + '/driver/push-token').set(bearer(f.session)).send({ token: 'nope' })).status, 400);
+  const made = await call('post', '/loads', load({ loadNumber: 'L-5150', driverId: f.driver.id, truckId: f.truck.id }));
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].title, /L-5150/);
+  assert.equal(sent[0].data.loadId, made.body.load.id);
+  // Changing something else does not remind again.
+  await call('patch', `/loads/${made.body.load.id}`, { broker: 'New Broker' });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(sent.length, 1);
+  await c.db.close();
+});

@@ -61,6 +61,7 @@ export function loadConfig(env = process.env) {
     // New companies join by request and approval. Instant self-registration is off unless this is set.
     // A company creates its own account at once; the dashboard opens when it pays (set REQUIRE_SUBSCRIPTION=false only for tests).
     allowSelfRegistration: env.ALLOW_SELF_REGISTRATION !== 'false',
+    pushNotifications: env.PUSH_NOTIFICATIONS === undefined ? undefined : env.PUSH_NOTIFICATIONS === 'true',
     maxFailedLogins: int(env.MAX_FAILED_LOGINS, 10),
     maxFailedPayments: int(env.MAX_FAILED_PAYMENTS, 10),
     requireSubscription: env.REQUIRE_SUBSCRIPTION !== 'false',

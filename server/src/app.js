@@ -27,11 +27,12 @@ import { adminRoutes } from './routes/admin.js';
 import { accessRoutes } from './routes/access.js';
 import { createMailer } from './services/mailer.js';
 import { createPaymentProvider } from './services/payments.js';
+import { createPusher } from './services/push.js';
 import { createGeocoder } from './services/geocode.js';
 import { signupRoutes } from './routes/signup.js';
 import { verifyGoogleIdToken } from './services/google.js';
 
-export function createApp({ db, config, mailer = createMailer(config), payments = createPaymentProvider(config), geocoder = createGeocoder(config), googleVerify = verifyGoogleIdToken }) {
+export function createApp({ db, config, mailer = createMailer(config), payments = createPaymentProvider(config), pusher = createPusher(config), geocoder = createGeocoder(config), googleVerify = verifyGoogleIdToken }) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
@@ -59,7 +60,7 @@ export function createApp({ db, config, mailer = createMailer(config), payments 
   // real-time layer (Socket.IO) forwards them to the right company room.
   const events = new EventEmitter();
   app.locals.events = events;
-  const deps = { db, config, authenticate, events, mailer, payments, geocoder, googleVerify };
+  const deps = { db, config, authenticate, events, mailer, payments, pusher, geocoder, googleVerify };
 
   // The fleet's data is for companies that have paid for a plan (and for the platform itself). Until then the account can
   // sign in and choose a plan, but not use the fleet endpoints.
