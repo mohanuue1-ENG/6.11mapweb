@@ -201,3 +201,23 @@ test('a driver gets a reminder on the phone when a load is given to them', async
   assert.equal(sent.length, 1);
   await c.db.close();
 });
+
+test('the owner can edit a dispatcher: name, email and a new password', async () => {
+  const c = await createTestContext();
+  const boss = await c.registerCompany('Edit Co');
+  const email1 = `d1-${crypto.randomBytes(3).toString('hex')}@example.test`;
+  const pw1 = randomPassword();
+  const made = await c.api().post(V1 + '/team/dispatchers').set(bearer(boss)).send({ name: 'Dee One', email: email1, password: pw1 });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const id = made.body.dispatcher.id;
+  const email2 = `d2-${crypto.randomBytes(3).toString('hex')}@example.test`;
+  const pw2 = randomPassword();
+  const edit = await c.api().patch(`${V1}/team/dispatchers/${id}`).set(bearer(boss)).send({ name: 'Dee Two', email: email2, password: pw2 });
+  assert.equal(edit.status, 200, JSON.stringify(edit.body));
+  assert.equal(edit.body.dispatcher.name, 'Dee Two');
+  assert.equal(edit.body.dispatcher.email, email2);
+  assert.equal((await c.api().post(`${V1}/auth/login`).send({ email: email1, password: pw1 })).status, 401);
+  assert.equal((await c.api().post(`${V1}/auth/login`).send({ email: email2, password: pw2 })).status, 200);
+  assert.equal((await c.api().patch(`${V1}/team/dispatchers/${id}`).set(bearer(boss)).send({})).status, 400);
+  await c.db.close();
+});

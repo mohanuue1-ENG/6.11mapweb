@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Search, Users } from 'lucide-react';
+import { Pencil, Search, Users } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { api, errorMessage } from '../../services/api';
 import { dateTime } from '../../services/format';
-import { ErrorBanner, Field, PageHeader, Panel, Spinner, useFieldClass } from '../../components/common/ui';
+import { ErrorBanner, Field, Modal, PageHeader, Panel, Spinner, primaryButton, useFieldClass } from '../../components/common/ui';
 
 const ROLES = { SUPER_ADMIN: 'Platform owner', COMPANY_ADMIN: 'Company owner', DISPATCHER: 'Dispatcher', DRIVER: 'Driver' };
 
@@ -14,6 +14,27 @@ export default function SuperAdminUsers() {
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [ef, setEf] = useState({ name: '', email: '', phone: '' });
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const startEdit = (u) => { setEditing(u); setEf({ name: u.name || '', email: u.email || '', phone: u.phone || '' }); setEditError(''); };
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setEditError('');
+    try {
+      const body = { name: ef.name.trim(), phone: ef.phone.trim() || null };
+      if (ef.email.trim()) body.email = ef.email.trim().toLowerCase();
+      await api(`/admin/users/${editing.id}`, { method: 'PATCH', body });
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setEditError(errorMessage(err, 'Could not save the changes.'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const load = useCallback(async () => {
     const q = new URLSearchParams();
@@ -95,6 +116,7 @@ export default function SuperAdminUsers() {
                         : <span className="px-2 py-0.5 rounded-full border border-red-500/40 bg-red-500/15 text-red-500 text-[10px] font-bold uppercase">{u.blocked ? 'Auto-blocked' : 'Blocked'}</span>}
                     </td>
                     <td className="py-3 px-4 text-right">
+                      <button type="button" onClick={() => startEdit(u)} aria-label={`Edit ${u.name}`} className="no-3d mr-2 px-2.5 py-1.5 rounded-lg border border-gray-500/30 hover:text-brand-green"><Pencil className="w-3.5 h-3.5 inline" /></button>
                       {u.role !== 'SUPER_ADMIN' && (
                         <button
                           type="button"
@@ -113,6 +135,17 @@ export default function SuperAdminUsers() {
           </div>
         )}
       </Panel>
+      {editing && (
+        <Modal title={`Edit ${editing.name}`} onClose={() => setEditing(null)}>
+          <form onSubmit={saveEdit} className="space-y-3">
+            <ErrorBanner message={editError} />
+            <Field label="Name *"><input required minLength={2} className={field} value={ef.name} onChange={(e) => setEf({ ...ef, name: e.target.value })} /></Field>
+            <Field label="Email"><input type="email" className={field} value={ef.email} onChange={(e) => setEf({ ...ef, email: e.target.value })} /></Field>
+            <Field label="Phone"><input className={field} value={ef.phone} onChange={(e) => setEf({ ...ef, phone: e.target.value })} /></Field>
+            <button type="submit" disabled={saving} className={`${primaryButton} w-full justify-center`}>{saving ? 'Saving…' : 'Save changes'}</button>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

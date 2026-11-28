@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { registrationRequestRoutes } from './adminRequests.js';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { asyncHandler, parse, notFound, conflict, HttpError } from '../errors.js';
+import { asyncHandler, parse, notFound, conflict, badRequest, HttpError } from '../errors.js';
 import { requireRole } from '../middleware/auth.js';
 import { uuid, email, strongPassword, requiredText, nullableText, buildUpdate } from '../validation.js';
 import { audit } from '../services/audit.js';
@@ -403,6 +403,25 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
           companyId: r.company_id, companyName: r.company_name,
         })),
       });
+    }),
+  );
+  router.patch(
+    '/users/:id',
+    asyncHandler(async (req, res) => {
+      const id = parse(uuid, req.params.id);
+      const input = parse(z.object({ name: requiredText(200), email, phone: nullableText(40) }).partial().strict(), req.body);
+      if (!Object.keys(input).length) throw badRequest('Nothing to change');
+      await db.tx(async (q) => {
+        const cur = (await q.query('SELECT id, company_id FROM users WHERE id = $1 FOR UPDATE', [id])).rows[0];
+        if (!cur) throw notFound('User not found');
+        if (input.email && (await q.query('SELECT 1 FROM users WHERE lower(email) = $1 AND id <> $2', [input.email, id])).rows.length) throw conflict('An account with this email already exists');
+        await q.query(
+          `UPDATE users SET name = COALESCE($2, name), email = COALESCE($3, email), phone = CASE WHEN $5 THEN $4 ELSE phone END, updated_at = now() WHERE id = $1`,
+          [id, input.name ?? null, input.email ?? null, input.phone ?? null, 'phone' in input],
+        );
+        await audit(q, { companyId: cur.company_id, actorUserId: req.auth.userId, action: 'USER_UPDATED', details: { userId: id, fields: Object.keys(input) }, ip: req.ip });
+      });
+      res.status(204).end();
     }),
   );
   router.post(

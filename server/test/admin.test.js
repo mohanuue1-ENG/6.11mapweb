@@ -333,3 +333,13 @@ test('the platform owner can find any user and block or open an account', async 
   assert.equal((await as(root).post(`/admin/users/${owner.id}/status`, { status: 'disabled' })).status, 409);
   assert.equal((await as(a).get('/admin/users')).status, 403);
 });
+
+test('the platform owner can edit a user name, email and phone', async () => {
+  const all = (await as(root).get('/admin/users')).body.users;
+  const u = all.find((x) => x.role === 'COMPANY_ADMIN');
+  const res = await ctx.api().patch(`/api/v1/admin/users/${u.id}`).set(bearer(root)).send({ name: 'Renamed Person', phone: '+15550001111' });
+  assert.equal(res.status, 204, JSON.stringify(res.body));
+  const after = (await as(root).get(`/admin/users?search=${encodeURIComponent('Renamed Person')}`)).body.users;
+  assert.ok(after.some((x) => x.id === u.id && x.phone === '+15550001111'));
+  assert.equal((await ctx.api().patch(`/api/v1/admin/users/${u.id}`).set(bearer(root)).send({})).status, 400);
+});
