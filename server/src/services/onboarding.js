@@ -31,8 +31,8 @@ export async function createCompanyAndAdmin(q, config, request, { plan = null, s
   if (plan && subscription) {
     const sub = await q.query(
       `INSERT INTO subscriptions
-         (company_id, plan_id, status, price_cents, truck_limit, current_period_end, provider, provider_customer_id, provider_subscription_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+         (company_id, plan_id, status, price_cents, truck_limit, current_period_end, provider, provider_customer_id, provider_subscription_id, product)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
       [
         companyId,
         plan.id,
@@ -43,6 +43,7 @@ export async function createCompanyAndAdmin(q, config, request, { plan = null, s
         subscription.provider ?? null,
         subscription.customerId ?? null,
         subscription.subscriptionId ?? null,
+        plan.product ?? 'trackova',
       ],
     );
     subscriptionId = sub.rows[0].id;

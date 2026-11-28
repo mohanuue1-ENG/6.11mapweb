@@ -90,9 +90,9 @@ export function registrationRequestRoutes({ db, config, mailer }) {
         );
         if (plan) {
           await q.query(
-            `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end)
-             VALUES ($1, $2, 'trialing', $3, $4, now() + ($5 || ' days')::interval)`,
-            [companyId, plan.id, plan.price_cents, plan.truck_limit, String(config.trialDays)],
+            `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end, product)
+             VALUES ($1, $2, 'trialing', $3, $4, now() + ($5 || ' days')::interval, $6)`,
+            [companyId, plan.id, plan.price_cents, plan.truck_limit, String(config.trialDays), plan.product ?? 'trackova'],
           );
         }
         if (!chosen) {

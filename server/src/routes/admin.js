@@ -141,11 +141,11 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
         );
         const companyId = company.rows[0].id;
         if (input.isInternal) {
-          const plan = (await q.query(`SELECT id FROM plans WHERE is_internal_only AND is_active ORDER BY created_at LIMIT 1`)).rows[0];
+          const plan = (await q.query(`SELECT id, product FROM plans WHERE is_internal_only AND is_active ORDER BY created_at LIMIT 1`)).rows[0];
           if (!plan) throw conflict('There is no internal plan yet. Create one in Plans first.');
           await q.query(
-            `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit) VALUES ($1, $2, 'active', 0, NULL)`,
-            [companyId, plan.id],
+            `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, product) VALUES ($1, $2, 'active', 0, NULL, $3)`,
+            [companyId, plan.id, plan.product ?? 'trackova'],
           );
         }
         const user = await q.query(
@@ -268,9 +268,9 @@ export function adminRoutes({ db, config, authenticate, mailer }) {
             : new Date(input.currentPeriodEnd);
         // Price and limit are copied, so a later plan edit never changes what a company already agreed to.
         const inserted = await q.query(
-          `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [companyId, plan.id, input.status, plan.price_cents, plan.truck_limit, end],
+          `INSERT INTO subscriptions (company_id, plan_id, status, price_cents, truck_limit, current_period_end, product)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [companyId, plan.id, input.status, plan.price_cents, plan.truck_limit, end, plan.product ?? 'trackova'],
         );
         await audit(q, {
           companyId,

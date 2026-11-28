@@ -221,3 +221,17 @@ test('the owner can edit a dispatcher: name, email and a new password', async ()
   assert.equal((await c.api().patch(`${V1}/team/dispatchers/${id}`).set(bearer(boss)).send({})).status, 400);
   await c.db.close();
 });
+
+test('a plan given by the platform owner carries its product, so a Both plan opens Loadova', async () => {
+  const c = await createTestContext({ REQUIRE_SUBSCRIPTION: 'true' });
+  const root = await c.createSuperAdmin();
+  const co = await c.registerCompany('Both Co');
+  const plan = (await c.api().post(V1 + '/admin/plans').set(bearer(root)).send({ name: 'Both test', priceCents: 0, product: 'both' })).body.plan;
+  const companyId = (await c.db.query(`SELECT company_id FROM users WHERE role = 'COMPANY_ADMIN' ORDER BY created_at DESC LIMIT 1`)).rows[0].company_id;
+  const put = await c.api().put(`${V1}/admin/companies/${companyId}/subscription`).set(bearer(root)).send({ planId: plan.id });
+  assert.equal(put.status, 200, JSON.stringify(put.body));
+  assert.equal(put.body.subscription.product, 'both');
+  const loads = await c.api().get(V1 + '/loads').set(bearer(co));
+  assert.equal(loads.status, 200, JSON.stringify(loads.body));
+  await c.db.close();
+});
